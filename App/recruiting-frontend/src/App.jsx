@@ -58,6 +58,7 @@ function AppContent() {
               </PrivateRoute>
             }
           />
+          <Route path="/templates/edit/:id" element={<CreateTemplate />} />
           <Route
             path="/templates/my"
             element={

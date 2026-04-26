@@ -5,11 +5,13 @@ const { authenticateToken } = require('../middleware/auth');
 const globalTemplateController = require('../controllers/globalTemplate.controller')
 
 // Получить все уникальные названия этапов, которые этот рекрутер использовал ранее
-router.get('/templates/my', authenticateToken, templateController.GetMyTemplates);
-router.post('/templates/create', authenticateToken, templateController.createTemplate);
-router.put('/templates/:id', authenticateToken, templateController.updateTemplate);
+router.get('/my', authenticateToken, templateController.GetMyTemplates);
+router.post('/create-old', authenticateToken, templateController.createTemplate);
+router.put('/:id', authenticateToken, templateController.updateTemplate);
 
-router.get('/templates/global', authenticateToken, globalTemplateController.getMyGlobalTemplates);
-router.post('/templates/create', authenticateToken, globalTemplateController.createGlobalTemplate);
+router.get('/global/:id', authenticateToken, globalTemplateController.getGlobalTemplateById);
+router.put('/global/:id', authenticateToken, globalTemplateController.updateGlobalTemplate);
+router.get('/global', authenticateToken, globalTemplateController.getMyGlobalTemplates);
+router.post('/create', authenticateToken, globalTemplateController.createGlobalTemplate);
 
 module.exports = router;

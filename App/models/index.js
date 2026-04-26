@@ -56,24 +56,39 @@ const Interview = sequelize.define('Interview', {
 });
 
 const GlobalTemplate = sequelize.define('GlobalTemplate', {
-    GlobalTemplateId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    GlobalTemplateId: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        field: 'GlobalTemplateId' // Явное указание имени колонки
+    },
     name: { type: DataTypes.STRING, allowNull: false },
-    description: { type: DataTypes.TEXT }
+    description: { type: DataTypes.TEXT },
+    recruiter_id: { type: DataTypes.INTEGER } // Убедись, что это поле тоже есть
+}, {
+    tableName: 'GlobalTemplates' // Хорошая практика — явно указать имя таблицы
 });
 
-// Пункты глобального шаблона
 const GlobalTemplateItem = sequelize.define('GlobalTemplateItem', {
-    ItemId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    ItemId: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        field: 'ItemId'
+    },
     content: { type: DataTypes.TEXT, allowNull: false },
     order_index: { type: DataTypes.INTEGER, defaultValue: 0 },
     global_template_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        field: 'global_template_id', // Тоже лучше указать явно
         references: {
-            model: 'GlobalTemplates', // Имя таблицы в БД
+            model: 'GlobalTemplates',
             key: 'GlobalTemplateId'
         }
     }
+}, {
+    tableName: 'GlobalTemplateItems'
 });
 
 // Настройка ассоциаций (связей)
