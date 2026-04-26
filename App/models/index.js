@@ -20,7 +20,8 @@ const Vacancy = sequelize.define('Vacancy', {
     VacancyId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     title: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT },
-    status: { type: DataTypes.STRING, defaultValue: 'open' }
+    status: { type: DataTypes.STRING, defaultValue: 'open' },
+    recruiter_id: { type: DataTypes.INTEGER, allowNull: false }
 });
 
 const CheckListTemplate = sequelize.define('CheckListTemplate', {

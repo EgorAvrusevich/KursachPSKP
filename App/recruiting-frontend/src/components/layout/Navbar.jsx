@@ -44,7 +44,7 @@ const Navbar = () => {
 
             {user?.role === 'Recruiter' && (
               <>
-                <Link to="/my-vacancies" className="hover:text-blue-600">Мои вакансии</Link>
+                <Link to="/vacancies/my-vacancies" className="hover:text-blue-600">Мои вакансии</Link>
                 <Link to="/candidates-base" className="hover:text-blue-600">База соискателей</Link>
                 <Link to="/messages" className="flex items-center gap-1 hover:text-blue-600">
                   <MessageSquare size={16} /> Чат

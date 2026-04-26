@@ -8,8 +8,21 @@ import api from '../api';
 const MyVacancies = () => {
     const navigate = useNavigate();
     const [myVacancies, setMyVacancies] = useState([]);
-    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [loading, setLoading] = useState(true);
 
+    useEffect(() => {
+        api.get('/vacancies/my-vacancies')
+            .then(res => {
+                setMyVacancies(res.data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Ошибка загрузки:", err);
+                setLoading(false);
+            });
+    }, []);
+
+    if (loading) return <div className="p-8 text-center animate-pulse">Загрузка вакансий...</div>;
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -32,19 +45,25 @@ const MyVacancies = () => {
             </div>
 
             <div className="grid gap-4">
-                {/* Список текущих вакансий рекрутера */}
-                {myVacancies.map(v => (
-                    <Card key={v.id} className="flex justify-between items-center">
-                        <div>
-                            <h3 className="font-bold text-lg">{v.title}</h3>
-                            <p className="text-sm text-gray-500">Откликов: {v.applicationsCount || 0}</p>
-                        </div>
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm"><Settings size={16} /></Button>
-                            <Button variant="secondary" size="sm">Кандидаты</Button>
-                        </div>
-                    </Card>
-                ))}
+                {myVacancies.length > 0 ? (
+                    myVacancies.map(v => (
+                        <Card key={v.id} className="flex justify-between items-center">
+                            <div>
+                                <h3 className="font-bold text-lg">{v.title}</h3>
+                                <p className="text-sm text-gray-500">Откликов: {v.applicationsCount || 0}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm"><Settings size={16} /></Button>
+                                <Button variant="secondary" size="sm">Кандидаты</Button>
+                            </div>
+                        </Card>
+                    ))
+                ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                        <p className="text-gray-500">У вас еще нет созданных вакансий</p>
+                    </div>
+                )
+                }
             </div>
         </div>
     );

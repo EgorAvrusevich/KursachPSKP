@@ -61,15 +61,14 @@ const getMyGlobalTemplates = async (req, res) => {
     try {
         const templates = await GlobalTemplate.findAll({
             where: { recruiter_id: req.user.id },
-            include: [{ model: GlobalTemplateItem }],
-            order: [
-                ['createdAt', 'DESC'],
-                [GlobalTemplateItem, 'order_index', 'ASC']
-            ]
+            include: [{ 
+                model: GlobalTemplateItem,
+                // Проверь, чтобы имя модели совпадало с тем, что в define
+            }]
         });
         res.json(templates);
     } catch (error) {
-        res.status(500).json({ message: "Ошибка при получении шаблонов" });
+        res.status(500).json({ message: "Ошибка" });
     }
 };
 

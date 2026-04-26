@@ -74,23 +74,45 @@ const getVacancyById = async (req, res) => {
 
 const applyToVacancy = async (req, res) => {
     try {
-        // Проверяем, не откликался ли уже (req.user.id из authenticateToken)
         const existing = await Application.findOne({
-            where: { VacancyId: req.params.id, UserId: req.user.id }
+            where: { 
+                vacancy_id: req.params.id, 
+                candidate_id: req.user.id 
+            }
         });
 
         if (existing) return res.status(400).json({ message: 'Вы уже откликнулись' });
 
         await Application.create({
-            VacancyId: req.params.id,
-            UserId: req.user.id,
+            vacancy_id: req.params.id,
+            candidate_id: req.user.id,
             status: 'Pending'
         });
 
         res.status(201).json({ message: 'Отклик успешно отправлен' });
     } catch (error) {
+        console.error("Ошибка отклика:", error);
         res.status(500).json({ message: 'Ошибка при отклике' });
     }
 };
 
-module.exports = { getVacancyById, applyToVacancy, getAllVacancies, createVacancyWithChecklist};
+const getMyVacancies = async (req, res) => {
+    try {
+        console.log("=== API LOG: Поиск вакансий для UserID:", req.user.id);
+
+        const vacancies = await Vacancy.findAll({
+            where: { recruiter_id: req.user.id },
+            // Если в БД нет колонок createdAt/updatedAt, добавь в модель timestamps: false
+            order: [['VacancyId', 'DESC']] 
+        });
+
+        console.log(`=== API LOG: Найдено вакансий: ${vacancies.length}`);
+        res.json(vacancies);
+    } catch (error) {
+        // Если это не выводится, проверь, запущен ли сервер именно в этом терминале
+        console.error("!!! ОШИБКА БЭКЕНДА:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { getVacancyById, applyToVacancy, getAllVacancies, createVacancyWithChecklist, getMyVacancies };

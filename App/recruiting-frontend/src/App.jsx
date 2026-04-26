@@ -68,7 +68,7 @@ function AppContent() {
             }
           />
           <Route
-            path="/my-vacancies"
+            path="/vacancies/my-vacancies"
             element={
               <PrivateRoute role="Recruiter">
                 <MyVacancies />
