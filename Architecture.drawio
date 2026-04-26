@@ -1,0 +1,160 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 OPR/128.0.0.0" version="29.6.0">
+  <diagram name="Страница — 1" id="okSYOLbKSN-8l4fSF6iv">
+    <mxGraphModel dx="2804" dy="1191" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-1" parent="1" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;size=10;" value="" vertex="1">
+          <mxGeometry height="460" width="1020" x="-150" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-2" parent="1" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;size=10;" value="" vertex="1">
+          <mxGeometry height="400" width="990" x="-130" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=4" value="Docker Compose" vertex="1">
+          <mxGeometry height="30" width="110" x="-120" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=4" value="Server" vertex="1">
+          <mxGeometry height="30" width="60" x="-140" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-13" connectable="0" parent="1" style="group" value="" vertex="1">
+          <mxGeometry height="140" width="136" x="314" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-5" parent="nO-Pe8vRAP4WVSPpizyz-13" style="shape=datastore;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="140" width="136" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-7" parent="nO-Pe8vRAP4WVSPpizyz-13" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Docker container&lt;br&gt;Database Server" vertex="1">
+          <mxGeometry height="30" width="130" x="3" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-8" parent="nO-Pe8vRAP4WVSPpizyz-13" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" value="MSSQL" vertex="1">
+          <mxGeometry height="50" width="100" x="18" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-14" connectable="0" parent="1" style="group" value="" vertex="1">
+          <mxGeometry height="120" width="210" x="277" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-9" parent="nO-Pe8vRAP4WVSPpizyz-14" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;size=10;" value="" vertex="1">
+          <mxGeometry height="120" width="210" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-11" parent="nO-Pe8vRAP4WVSPpizyz-14" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Docker container&lt;br&gt;Web-Api" vertex="1">
+          <mxGeometry height="30" width="130" x="40" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-12" parent="nO-Pe8vRAP4WVSPpizyz-14" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" value="Node JS&lt;br&gt;Express" vertex="1">
+          <mxGeometry height="50" width="140" x="35" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-15" connectable="0" parent="1" style="group" value="" vertex="1">
+          <mxGeometry height="120" width="210" x="-40" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-16" parent="nO-Pe8vRAP4WVSPpizyz-15" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;size=10;" value="" vertex="1">
+          <mxGeometry height="120" width="210" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-17" parent="nO-Pe8vRAP4WVSPpizyz-15" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Docker container&lt;br&gt;Message Broker" vertex="1">
+          <mxGeometry height="30" width="130" x="40" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-18" parent="nO-Pe8vRAP4WVSPpizyz-15" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" value="RabbitMQ" vertex="1">
+          <mxGeometry height="50" width="140" x="35" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-22" connectable="0" parent="1" style="group;verticalAlign=middle;" value="" vertex="1">
+          <mxGeometry height="120" width="210" x="590" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-23" parent="nO-Pe8vRAP4WVSPpizyz-22" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;size=10;" value="" vertex="1">
+          <mxGeometry height="120" width="210" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-24" parent="nO-Pe8vRAP4WVSPpizyz-22" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Docker container" vertex="1">
+          <mxGeometry height="30" width="130" x="40" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-25" parent="nO-Pe8vRAP4WVSPpizyz-22" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="70" width="180" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-26" parent="nO-Pe8vRAP4WVSPpizyz-22" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" value="React bundler" vertex="1">
+          <mxGeometry height="40" width="140" x="50" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-10" parent="nO-Pe8vRAP4WVSPpizyz-22" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Nginx" vertex="1">
+          <mxGeometry height="30" width="60" x="30" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-27" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Docker 25.0.2" vertex="1">
+          <mxGeometry height="30" width="100" x="760" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-33" edge="1" parent="1" source="nO-Pe8vRAP4WVSPpizyz-28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;" target="nO-Pe8vRAP4WVSPpizyz-23">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="910" y="600" />
+              <mxPoint x="910" y="600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-34" edge="1" parent="1" source="nO-Pe8vRAP4WVSPpizyz-28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;" target="nO-Pe8vRAP4WVSPpizyz-23">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="990" y="560" />
+              <mxPoint x="990" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-28" parent="1" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;size=10;" value="" vertex="1">
+          <mxGeometry height="270" width="370" x="1050" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-29" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Client" vertex="1">
+          <mxGeometry height="30" width="60" x="1210" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-30" parent="1" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;size=10;" value="" vertex="1">
+          <mxGeometry height="195" width="327.5" x="1082.5" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-31" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Browser" vertex="1">
+          <mxGeometry height="30" width="60" x="1210" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-32" parent="1" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" value="ReactJS" vertex="1">
+          <mxGeometry height="82.5" width="174.5" x="1159" y="532.5" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-35" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="HTTP 1.1" vertex="1">
+          <mxGeometry height="30" width="60" x="890" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-36" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="WS" vertex="1">
+          <mxGeometry height="30" width="60" x="890" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-37" edge="1" parent="1" source="nO-Pe8vRAP4WVSPpizyz-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;exitX=0.006;exitY=0.426;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.995;entryY=0.425;entryDx=0;entryDy=0;entryPerimeter=0;" target="nO-Pe8vRAP4WVSPpizyz-9">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+            <mxPoint x="563" y="590" as="sourcePoint" />
+            <mxPoint x="460" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-38" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="HTTP 1.1" vertex="1">
+          <mxGeometry height="30" width="60" x="510" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-39" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;exitX=0.006;exitY=0.426;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.995;entryY=0.425;entryDx=0;entryDy=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+            <mxPoint x="592" y="606" as="sourcePoint" />
+            <mxPoint x="487" y="606" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-40" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="WS" vertex="1">
+          <mxGeometry height="30" width="60" x="511" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-41" edge="1" parent="1" source="nO-Pe8vRAP4WVSPpizyz-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;exitX=0;exitY=0;exitDx=0;exitDy=55;exitPerimeter=0;entryX=0.999;entryY=0.457;entryDx=0;entryDy=0;entryPerimeter=0;" target="nO-Pe8vRAP4WVSPpizyz-16">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="180" y="575" />
+            </Array>
+            <mxPoint x="277" y="563.5" as="sourcePoint" />
+            <mxPoint x="180" y="570" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-42" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="AMQP" vertex="1">
+          <mxGeometry height="30" width="60" x="196" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-44" edge="1" parent="1" source="nO-Pe8vRAP4WVSPpizyz-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;exitX=0.497;exitY=0.02;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="nO-Pe8vRAP4WVSPpizyz-5">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+            <mxPoint x="395" y="461" as="sourcePoint" />
+            <mxPoint x="290" y="461" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nO-Pe8vRAP4WVSPpizyz-46" connectable="0" parent="nO-Pe8vRAP4WVSPpizyz-44" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="TCP" vertex="1">
+          <mxGeometry relative="1" x="0.1269" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

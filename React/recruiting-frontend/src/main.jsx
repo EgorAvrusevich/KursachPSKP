@@ -1,0 +1,18 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+import './index.css';
+
+// Импортируем провайдер авторизации, который мы создали ранее
+import { AuthProvider } from './context/AuthContext.jsx';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    {/* AuthProvider позволяет любому компоненту внутри App 
+        получать доступ к данным пользователя через хук useAuth() 
+    */}
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </React.StrictMode>,
+);

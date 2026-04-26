@@ -1,0 +1,66 @@
+services:
+  # База данных MSSQL
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: recruiting_db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Kv6084242kv!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql # Сохраняем данные здесь
+    networks:
+      - recruiting_network
+
+  # Брокер сообщений RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: recruiting_mq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - recruiting_network
+
+  # Backend API
+  api: # <-- Имя сервиса должно быть именно 'api'
+    build: .
+    container_name: recruiting_api
+    restart: always
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=1433
+      - DB_PASSWORD=Kv6084242kv!
+      - JWT_SECRET=your_super_secret_key_123  # ПРОВЕРЬ ЭТО
+      - JWT_EXPIRES_IN=24h
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - recruiting_network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:latest
+    container_name: recruiting_proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api # <-- Здесь должно быть 'api', как и выше
+    networks:
+      - recruiting_network
+
+# ВАЖНО: Блок volumes должен быть на одном уровне с services!
+volumes:
+  mssql_data:
+    driver: local
+
+networks:
+  recruiting_network:
+    driver: bridge
