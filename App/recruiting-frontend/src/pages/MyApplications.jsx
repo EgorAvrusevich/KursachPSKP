@@ -3,10 +3,18 @@ import api from '../api';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ChatWindow from '../components/ChatWindow'; // Импорт нашего чата
-import { 
-    Briefcase, Calendar, Clock, MessageSquare, 
-    X, CheckCircle2, Timer, AlertCircle 
+import {
+    Briefcase, Calendar, Clock, MessageSquare,
+    X, CheckCircle2, Timer, AlertCircle
 } from 'lucide-react';
+
+const parseJwt = (token) => {
+    try {
+        return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+        return null;
+    }
+};
 
 const MyApplications = () => {
     const [applications, setApplications] = useState([]);
@@ -15,12 +23,16 @@ const MyApplications = () => {
     const [activeTab, setActiveTab] = useState('details');
 
     // Получаем ID текущего пользователя из системы (кандидата)
-    const currentUserId = JSON.parse(localStorage.getItem('user'))?.UserId;
+    const token = localStorage.getItem('token');
+    const userData = token ? parseJwt(token) : null;
+    const currentUserId = userData?.id;
 
     useEffect(() => {
         const fetchApps = async () => {
             try {
                 const res = await api.get('/applications/my');
+                // Проверь, что бэкенд возвращает массив. 
+                // Если возвращается объект с полем, например res.data.applications, поправь здесь.
                 setApplications(res.data);
             } catch (err) {
                 console.error("Ошибка загрузки откликов", err);
@@ -42,63 +54,86 @@ const MyApplications = () => {
 
     if (loading) return <div className="p-20 text-center text-slate-500">Загрузка ваших откликов...</div>;
 
+    if (applications.length === 0) {
+        return (
+            <div className="max-w-4xl mx-auto p-6 text-center">
+                <h1 className="text-3xl font-black text-slate-800 mb-4">Мои отклики</h1>
+                <div className="p-10 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+                    Вы еще никуда не откликнулись. Самое время найти работу!
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-4xl mx-auto p-6 space-y-6">
             <h1 className="text-3xl font-black text-slate-800">Мои отклики</h1>
 
             <div className="grid gap-4">
-                {applications.map(app => (
-                    <Card 
-                        key={app.ApplicationId} 
-                        className="p-5 cursor-pointer hover:shadow-md transition-all border-l-4 border-blue-500"
-                        onClick={() => {
-                            setSelectedApp(app);
-                            setActiveTab('details');
-                        }}
-                    >
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-                                    <Briefcase size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-900">{app.Vacancy?.title}</h3>
-                                    <p className="text-sm text-slate-500 flex items-center gap-1">
-                                        <Calendar size={14} /> Отклик от {new Date(app.createdAt).toLocaleDateString()}
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-3">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusStyle(app.status)}`}>
-                                    {app.status}
-                                </span>
-                                {app.status === 'Принято' && (
-                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center animate-pulse">
-                                        <MessageSquare size={16} />
+                {applications.map(app => {
+                    // Очищаем статус от лишних пробелов MSSQL
+                    const cleanStatus = app.status ? app.status.trim() : '';
+                    const appId = app.ApplicationId || app.id;
+
+                    return (
+                        <Card
+                            key={appId}
+                            className="p-5 cursor-pointer hover:shadow-md transition-all border-l-4 border-blue-500"
+                            // Пробуем остановить всплытие, если внутри Card есть другие интерактивные элементы
+                            onClick={(e) => {
+                                console.log("!!! Клик зафиксирован !!!");
+                                console.log("Данные отклика:", app);
+                                setSelectedApp(app);
+                                setActiveTab('details');
+                            }}
+                        >
+                            <div className="flex justify-between items-center pointer-events-none">
+                                {/* pointer-events-none гарантирует, что клик пройдет сквозь иконки прямо на Card */}
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+                                        <Briefcase size={24} />
                                     </div>
-                                )}
+                                    <div>
+                                        <h3 className="font-bold text-slate-900">
+                                            {app.Vacancy?.title || "Вакансия #" + app.vacancy_id}
+                                        </h3>
+                                        <p className="text-sm text-slate-500 flex items-center gap-1">
+                                            <Calendar size={14} /> Отклик от {new Date(app.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusStyle(cleanStatus)}`}>
+                                        {cleanStatus}
+                                    </span>
+                                    {cleanStatus === 'Принято' && (
+                                        <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center animate-pulse">
+                                            <MessageSquare size={16} />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </Card>
-                ))}
+                        </Card>
+                    );
+                })}
             </div>
 
             {/* МОДАЛКА ДЕТАЛЕЙ И ЧАТА */}
             {selectedApp && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <Card className="max-w-2xl w-full max-h-[90vh] flex flex-col p-0 shadow-2xl border-none overflow-hidden animate-in fade-in zoom-in duration-200">
-                        
+
                         {/* Tabs Header */}
                         <div className="p-4 border-b flex justify-between items-center bg-white">
                             <div className="flex gap-6 ml-2">
-                                <button 
+                                <button
                                     onClick={() => setActiveTab('details')}
                                     className={`pb-2 text-sm font-bold transition-colors ${activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     Детали вакансии
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => setActiveTab('chat')}
                                     className={`pb-2 text-sm font-bold transition-colors flex items-center gap-2 ${activeTab === 'chat' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
@@ -118,7 +153,7 @@ const MyApplications = () => {
                                     <div className="space-y-2">
                                         <h2 className="text-2xl font-black text-slate-900">{selectedApp.Vacancy?.title}</h2>
                                         <div className="flex items-center gap-4 text-slate-500 text-sm">
-                                            <span className="flex items-center gap-1"><Clock size={14}/> {selectedApp.status}</span>
+                                            <span className="flex items-center gap-1"><Clock size={14} /> {selectedApp.status}</span>
                                         </div>
                                     </div>
                                     <div className="p-6 bg-white border border-slate-200 rounded-2xl">
@@ -131,9 +166,9 @@ const MyApplications = () => {
                             ) : (
                                 <div className="p-4 h-full min-h-[450px]">
                                     {selectedApp.status === 'Принято' ? (
-                                        <ChatWindow 
-                                            applicationId={selectedApp.ApplicationId} 
-                                            currentUserId={currentUserId} 
+                                        <ChatWindow
+                                            applicationId={selectedApp.ApplicationId}
+                                            currentUserId={currentUserId}
                                         />
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-center p-10 space-y-4">

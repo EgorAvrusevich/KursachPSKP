@@ -24,4 +24,6 @@ async function publishEvent(queue, data) {
     }
 }
 
+
+
 module.exports = { publishEvent };

@@ -3,6 +3,7 @@ const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
 const amqp = require('amqplib');
+const { publishEvent } = require('./services/mqService');
 const { sequelize, ChatMessage } = require('./models'); // Импортируем из нашей папки
 const authRoutes = require('./routes/auth.routes');
 const progressRoutes = require('./routes/progress.routes');
@@ -11,6 +12,7 @@ const vacancyRoutes = require('./routes/vacancy.routes');
 const applicationRoutes = require('./routes/application.routes')
 const templateRoutes = require('./routes/template.routes');
 const startChatWorker = require('./workers/chatWorker');
+const startMessageWorker = require('./workers/MessageWorker');
 
 const app = express();
 const server = http.createServer(app);
@@ -83,6 +85,39 @@ io.on('connection', (socket) => {
     socket.on('new-ice-candidate', ({ interviewId, candidate }) => {
         socket.to(`interview-${interviewId}`).emit('new-ice-candidate', candidate);
     });
+
+    socket.on("join_chat", (chatId) => {
+        const roomName = `chat_${chatId}`;
+        socket.join(roomName);
+        console.log(`Socket ${socket.id} joined chat room: ${roomName}`);
+    });
+
+    socket.on("send_message", async (data) => {
+        const { chatId, senderId, text } = data;
+
+        const messageToBroadcast = {
+            MessageId: Date.now(),
+            chat_id: chatId,      // Убедись, что на фронте msg.chat_id или подправь под msg.ChatId
+            sender_id: senderId,
+            message_text: text,
+            sent_at: new Date(),
+            is_system: false
+        };
+
+        // Рассылаем всем в комнату chat_{id}
+        io.to(`chat_${chatId}`).emit("new_message", messageToBroadcast);
+
+        try {
+            await publishEvent('chat_messages', {
+                chatId,
+                senderId,
+                text,
+                sentAt: messageToBroadcast.sent_at
+            });
+        } catch (err) {
+            console.error("Ошибка RabbitMQ:", err);
+        }
+    });
 });
 
 app.get('/health', (req, res) => {
@@ -121,6 +156,7 @@ async function bootstrap() {
     server.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
         startChatWorker(); // Запуск слушателя RabbitMQ
+        startMessageWorker();
     });
 }
 

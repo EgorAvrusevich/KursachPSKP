@@ -13,14 +13,14 @@ const ChatWindow = ({ applicationId, currentUserId }) => {
     useEffect(() => {
         const fetchChat = async () => {
             try {
-                // Получаем чат по ID отклика
                 const res = await api.get(`/applications/${applicationId}`);
-                setChatId(res.data.ChatId);
+                const fetchedChatId = res.data.ChatId;
+                setChatId(fetchedChatId);
                 setMessages(res.data.ChatMessages || []);
 
-                // Подключаемся к сокету
                 socket.connect();
-                socket.emit("join_chat", res.data.ChatId);
+                // Сообщаем серверу, что мы хотим слушать именно этот чат
+                socket.emit("join_chat", fetchedChatId);
             } catch (err) {
                 console.error("Ошибка загрузки чата", err);
             }
@@ -28,13 +28,22 @@ const ChatWindow = ({ applicationId, currentUserId }) => {
 
         fetchChat();
 
-        // Слушаем новые сообщения
-        socket.on("new_message", (message) => {
-            setMessages((prev) => [...prev, message]);
-        });
+        // Слушаем входящие сообщения
+        const handleNewMessage = (message) => {
+            setMessages((prev) => {
+                // Если сообщение с таким ID уже есть (например, мы его сами отправили), не добавляем
+                const exists = prev.find(m => m.MessageId === message.MessageId);
+                if (exists) return prev;
+                return [...prev, message];
+            });
+        };
+
+        socket.on("new_message", handleNewMessage);
 
         return () => {
-            socket.off("new_message");
+            socket.off("new_message", handleNewMessage);
+            // Если сокет глобальный, disconnect() может убить другие чаты, 
+            // лучше использовать socket.emit("leave_chat", chatId)
             socket.disconnect();
         };
     }, [applicationId]);
@@ -45,7 +54,15 @@ const ChatWindow = ({ applicationId, currentUserId }) => {
     }, [messages]);
 
     const sendMessage = () => {
-        if (!input.trim() || !chatId) return;
+        // Если нет текста, нет чата ИЛИ нет ID пользователя — ничего не шлем
+        if (!input.trim() || !chatId || !currentUserId) {
+            console.error("❌ Невозможно отправить: данные не полные", {
+                chatId,
+                currentUserId,
+                hasText: !!input.trim()
+            });
+            return;
+        }
 
         const messageData = {
             chatId,

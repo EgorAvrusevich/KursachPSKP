@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost'; 
+const SOCKET_URL = 'http://localhost';
 
 const socket = io(SOCKET_URL, {
     autoConnect: false, // Чтобы не подключаться сразу при импорте

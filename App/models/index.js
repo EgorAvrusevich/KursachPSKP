@@ -96,17 +96,19 @@ const Chat = sequelize.define('Chat', {
         type: DataTypes.INTEGER, 
         primaryKey: true, 
         autoIncrement: true,
-        field: 'chat_id' // В SQL у тебя chat_id
+        field: 'chat_id'
     },
     application_id: { 
         type: DataTypes.INTEGER, 
-        unique: true,
-        allowNull: false 
+        field: 'application_id'
     }
 }, { 
-    tableName: 'Chats', 
-    timestamps: true, // Включаем, так как они есть в таблице
-    underscored: false // Выключаем автоматическое превращение updatedAt -> updated_at
+    tableName: 'Chats',
+    timestamps: true,
+    underscored: false, // Важно
+    // ЯВНОЕ УКАЗАНИЕ КОЛОНОК ДЛЯ MSSQL
+    createdAt: 'created_at', // в JS это createdAt, а в БД - created_at
+    updatedAt: 'updated_at'  // в JS это updatedAt, а в БД - updated_at
 });
 
 const ChatMessage = sequelize.define('ChatMessage', {
@@ -114,17 +116,39 @@ const ChatMessage = sequelize.define('ChatMessage', {
         type: DataTypes.INTEGER, 
         primaryKey: true, 
         autoIncrement: true,
-        field: 'MessageId' // В SQL у тебя MessageId
+        field: 'MessageId' // Соответствует названию в твоем sqlcmd
     },
-    message_text: { type: DataTypes.TEXT, allowNull: false },
-    sent_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-    sender_id: { type: DataTypes.INTEGER, allowNull: false },
-    chat_id: { type: DataTypes.INTEGER, allowNull: false },
-    is_system: { type: DataTypes.BOOLEAN, defaultValue: false }
+    message_text: { 
+        type: DataTypes.TEXT, 
+        allowNull: false,
+        field: 'message_text' 
+    },
+    sent_at: { 
+        type: DataTypes.DATE, 
+        defaultValue: DataTypes.NOW,
+        field: 'sent_at'
+    },
+    sender_id: { 
+        type: DataTypes.INTEGER, 
+        allowNull: false,
+        field: 'sender_id'
+    },
+    chat_id: { 
+        type: DataTypes.INTEGER, 
+        allowNull: false,
+        field: 'chat_id'
+    },
+    is_system: { 
+        type: DataTypes.BOOLEAN, 
+        defaultValue: false,
+        field: 'is_system'
+    }
 }, { 
-    tableName: 'ChatMessages', 
-    timestamps: true, // В таблице есть createdAt и updatedAt
-    underscored: false // Чтобы Sequelize искал 'updatedAt', а не 'updated_at'
+    tableName: 'ChatMessages',
+    timestamps: true,
+    underscored: false,
+    createdAt: 'createdAt', // тут у тебя в базе CamelCase
+    updatedAt: 'updatedAt'  // тут у тебя в базе CamelCase
 });
 
 // Настройка ассоциаций (связей)

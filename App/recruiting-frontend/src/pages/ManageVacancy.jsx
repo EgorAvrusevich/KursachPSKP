@@ -8,6 +8,15 @@ import {
     User, Mail, Phone, CheckCircle, XCircle, 
     Clock, Loader2, ArrowLeft, X, MessageSquare 
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+const parseJwt = (token) => {
+    try {
+        return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+        return null;
+    }
+};
 
 const ManageVacancy = () => {
     const { id } = useParams();
@@ -16,9 +25,18 @@ const ManageVacancy = () => {
     const [loading, setLoading] = useState(true);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [activeTab, setActiveTab] = useState('profile'); // Состояние для переключения вкладок
+    const { user } = useAuth(); // Достаем юзера из контекста
 
     // В реальном приложении ID рекрутера берется из AuthContext
-    const currentUserId = JSON.parse(localStorage.getItem('user'))?.UserId;
+    const token = localStorage.getItem('token'); 
+    const decoded = token ? parseJwt(token) : null;
+
+    const currentUserId = decoded?.id; 
+
+    console.log("Ура! Нашли ID из токена:", currentUserId);
+
+    console.log("DEBUG: User from localStorage:", user);
+    console.log("DEBUG: Final currentUserId being passed:", currentUserId);
 
     useEffect(() => {
         const fetchCandidates = async () => {

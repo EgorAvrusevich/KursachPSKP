@@ -4,13 +4,20 @@ const { publishEvent } = require('../services/mqService');
 // 1. Получить мои отклики (для кандидата)
 const getMyApplications = async (req, res) => {
     try {
-        const userId = req.user.UserId; // Используем UserId из токена
+        // Проверяем, как именно называется поле в твоем токене (id или UserId)
+        const userId = req.user.UserId || req.user.id;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Пользователь не авторизован" });
+        }
 
         const apps = await Application.findAll({
-            where: { candidate_id: userId }, // ИСПРАВЛЕНО: согласно связи candidate_id
+            where: { candidate_id: userId },
             include: [
                 {
                     model: Vacancy,
+                    // Если связи CheckListTemplate нет напрямую в Vacancy, 
+                    // убедись, что она прописана в моделях
                     include: [CheckListTemplate]
                 }
             ],
@@ -19,7 +26,12 @@ const getMyApplications = async (req, res) => {
 
         res.json(apps);
     } catch (error) {
-        res.status(500).json({ message: "Ошибка сервера" });
+        // КРИТИЧНО: Выведи ошибку в консоль сервера, чтобы увидеть, на какое поле он ругается
+        console.error("ПОЛНАЯ ОШИБКА getMyApplications:", error);
+        res.status(500).json({
+            message: "Ошибка сервера",
+            error: error.message // Временно выводим текст ошибки для отладки
+        });
     }
 };
 
@@ -84,12 +96,19 @@ const updateApplicationStatus = async (req, res) => {
                 await CandidateProgress.bulkCreate(progress, { transaction: t });
             }
 
-            // ПУБЛИКУЕМ СОБЫТИЕ В RABBITMQ
-            // Мы не создаем чат здесь, это сделает воркер асинхронно
+            const recruiterId = req.user.UserId || req.user.id || req.user.sub;
+
+            console.log("Publishing with RecruiterID:", recruiterId);
+
+            if (!recruiterId) {
+                console.error("Критическая ошибка: ID рекрутера не найден в req.user. Проверьте JWT Middleware.");
+                // Не прерываем транзакцию, если чат не критичен, но лучше вернуть ошибку
+            }
+
             await publishEvent('application_accepted', {
                 applicationId: app.ApplicationId,
                 candidateId: app.candidate_id,
-                recruiterId: req.user.UserId
+                recruiterId: recruiterId // Теперь здесь будет значение, а не undefined
             });
         }
 
@@ -161,16 +180,16 @@ const openChat = async (req, res) => {
             where: { application_id: applicationId },
             include: [{
                 model: ChatMessage,
-                as: 'ChatMessages' // Проверьте, чтобы совпадало с hasMany
-            }],
-            // Попробуем сортировку по литералу, чтобы исключить ошибки алиасов Sequelize
-            order: [[sequelize.literal('[ChatMessages].[sent_at]'), 'ASC']]
+                // Сортировку пишем прямо здесь, это надежнее для MSSQL в Sequelize
+                separate: true,
+                order: [['sent_at', 'ASC']]
+            }]
         });
-        
+
         if (!chat) return res.status(404).json({ message: "Чат еще не создан" });
         res.json(chat);
     } catch (err) {
-        console.error("DEBUG SQL ERROR:", err.parent || err); 
+        console.error("Ошибка в openChat:", err);
         res.status(500).json({ error: err.message });
     }
 };
