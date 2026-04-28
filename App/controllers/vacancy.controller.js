@@ -1,4 +1,4 @@
-const { Vacancy, Application, User, CheckListTemplate, GlobalTemplate, GlobalTemplateItem, sequelize } = require('../models');
+const { Vacancy, Profile, Application, User, CheckListTemplate, GlobalTemplate, GlobalTemplateItem, CandidateProgress, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const createVacancyWithChecklist = async (req, res) => {
@@ -75,9 +75,9 @@ const getVacancyById = async (req, res) => {
 const applyToVacancy = async (req, res) => {
     try {
         const existing = await Application.findOne({
-            where: { 
-                vacancy_id: req.params.id, 
-                candidate_id: req.user.id 
+            where: {
+                vacancy_id: req.params.id,
+                candidate_id: req.user.id
             }
         });
 
@@ -96,23 +96,123 @@ const applyToVacancy = async (req, res) => {
     }
 };
 
+// В контроллере вакансий
 const getMyVacancies = async (req, res) => {
     try {
-        console.log("=== API LOG: Поиск вакансий для UserID:", req.user.id);
-
+        const userId = req.user.id;
         const vacancies = await Vacancy.findAll({
-            where: { recruiter_id: req.user.id },
-            // Если в БД нет колонок createdAt/updatedAt, добавь в модель timestamps: false
-            order: [['VacancyId', 'DESC']] 
+            where: { recruiter_id: userId },
+            attributes: {
+                include: [
+                    // Общее количество откликов
+                    [
+                        sequelize.literal(`(
+                            SELECT COUNT(*)
+                            FROM Applications AS app
+                            WHERE app.vacancy_id = Vacancy.VacancyId
+                        )`),
+                        'totalApps'
+                    ],
+                    // Количество нерассмотренных (статус 'pending' или тот, что у тебя по дефолту)
+                    [
+                        sequelize.literal(`(
+                            SELECT COUNT(*)
+                            FROM Applications AS app
+                            WHERE app.vacancy_id = Vacancy.VacancyId
+                              AND app.status = 'pending'
+                        )`),
+                        'pendingApps'
+                    ]
+                ]
+            },
+            order: [['createdAt', 'DESC']]
         });
 
-        console.log(`=== API LOG: Найдено вакансий: ${vacancies.length}`);
         res.json(vacancies);
     } catch (error) {
-        // Если это не выводится, проверь, запущен ли сервер именно в этом терминале
-        console.error("!!! ОШИБКА БЭКЕНДА:", error.message);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ message: "Ошибка сервера" });
     }
 };
 
-module.exports = { getVacancyById, applyToVacancy, getAllVacancies, createVacancyWithChecklist, getMyVacancies };
+const getVacancyByApplication = async (req, res) => {
+    try {
+        const { applicationId } = req.params;
+        const userId = req.user.id;
+
+        // 1. Ищем отклик с проверкой прав доступа (чтобы чужой не посмотрели)
+        const application = await Application.findOne({
+            where: {
+                id: applicationId,
+                // Если это кандидат, он видит свои. Если рекрутер - свои.
+                [Op.or]: [
+                    { candidate_id: userId },
+                    { '$Vacancy.recruiter_id$': userId }
+                ]
+            },
+            include: [
+                {
+                    model: Vacancy,
+                    include: [CheckListTemplate] // Общие этапы вакансии
+                }
+            ]
+        });
+
+        if (!application) {
+            return res.status(404).json({ message: "Отклик не найден" });
+        }
+
+        // 2. Логика прогресса: если статус НЕ 'Pending' (или 'На рассмотрении')
+        // Значит, рекрутер уже одобрил заявку и пора показывать динамический прогресс
+        let progress = [];
+        const activeStatuses = ['Приглашение', 'Accepted', 'Interview', 'TestTask']; // Статусы "дальше рассмотрения"
+
+        if (activeStatuses.includes(application.status)) {
+            progress = await CandidateProgress.findAll({
+                where: { ApplicationId: applicationId },
+                order: [['order_index', 'ASC']]
+            });
+        }
+
+        // 3. Собираем ответ
+        res.json({
+            applicationStatus: application.status,
+            vacancy: application.Vacancy,
+            // Если прогресс пустой (еще на рассмотрении), фронт может показать просто этапы из вакансии
+            progress: progress.length > 0 ? progress : null
+        });
+
+    } catch (error) {
+        console.error("Ошибка получения вакансии по отклику:", error);
+        res.status(500).json({ message: "Ошибка сервера" });
+    }
+};
+
+const getVacancyCandidates = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const applications = await Application.findAll({
+            where: { vacancy_id: id },
+            include: [
+                {
+                    model: User,
+                    as: 'Candidate', // Вы указали этот alias в связях
+                    attributes: ['UserId', 'email'],
+                    include: [
+                        {
+                            model: Profile, // Теперь Profile будет доступен благодаря импорту
+                            attributes: ['full_name', 'phone']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        res.json(applications);
+    } catch (error) {
+        console.error("DETAILED ERROR:", error);
+        res.status(500).json({ message: "Ошибка сервера", error: error.message });
+    }
+};
+
+module.exports = { getVacancyById, applyToVacancy, getAllVacancies, createVacancyWithChecklist, getMyVacancies, getVacancyByApplication, getVacancyCandidates };

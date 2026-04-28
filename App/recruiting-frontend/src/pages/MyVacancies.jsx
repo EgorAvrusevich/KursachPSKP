@@ -25,36 +25,43 @@ const MyVacancies = () => {
     if (loading) return <div className="p-8 text-center animate-pulse">Загрузка вакансий...</div>;
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-black text-gray-900">Управление вакансиями</h1>
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        className="flex items-center gap-2"
-                        onClick={() => navigate('/templates/my')}
-                    >
-                        <Layout size={18} /> Шаблоны чек-листов
-                    </Button>
-                    <Button
-                        onClick={() => navigate('/create-vacancy')}
-                        className="flex items-center gap-2"
-                    >
-                        <Plus size={18} /> Создать вакансию
-                    </Button>
-                </div>
-            </div>
-
             <div className="grid gap-4">
                 {myVacancies.length > 0 ? (
                     myVacancies.map(v => (
-                        <Card key={v.id} className="flex justify-between items-center">
-                            <div>
-                                <h3 className="font-bold text-lg">{v.title}</h3>
-                                <p className="text-sm text-gray-500">Откликов: {v.applicationsCount || 0}</p>
+                        <Card key={v.VacancyId} className="flex justify-between items-center p-5 hover:shadow-md transition-shadow">
+                            <div className="space-y-1">
+                                <h3 className="font-bold text-xl text-slate-800">{v.title}</h3>
+                                <div className="flex gap-4 items-center">
+                                    <span className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                                        {/* Убираем .dataValues, оставляем просто v.totalApps */}
+                                        Всего откликов: <b className="text-slate-900">{v.totalApps ?? 0}</b>
+                                    </span>
+
+                                    {/* Проверяем наличие новых откликов напрямую */}
+                                    {v.pendingApps > 0 && (
+                                        <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                            • {v.pendingApps} новых
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm"><Settings size={16} /></Button>
-                                <Button variant="secondary" size="sm">Кандидаты</Button>
+
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    title="Настройки вакансии"
+                                    onClick={() => navigate(`/edit-vacancy/${v.VacancyId}`)}
+                                >
+                                    <Settings size={18} />
+                                </Button>
+                                <Button
+                                    onClick={() => navigate(`/manage-vacancy/${v.VacancyId}`)} // Поправил v.VacancyId
+                                    variant="secondary"
+                                    className="font-bold"
+                                >
+                                    Кандидаты
+                                </Button>
                             </div>
                         </Card>
                     ))

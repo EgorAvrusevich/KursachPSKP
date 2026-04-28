@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:3000'; 
+const SOCKET_URL = 'http://localhost'; 
 
 const socket = io(SOCKET_URL, {
     autoConnect: false, // Чтобы не подключаться сразу при импорте
@@ -17,4 +17,4 @@ socket.on('connect_error', (err) => {
     console.error('❌ Socket connection error:', err.message);
 });
 
-export default [ socket ];
+export default socket;

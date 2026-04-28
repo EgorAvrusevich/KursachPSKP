@@ -41,18 +41,17 @@ const CandidateProgress = sequelize.define('CandidateProgress', {
     comment: { type: DataTypes.TEXT }
 });
 
-const ChatMessage = sequelize.define('ChatMessage', {
-    MessageId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    message_text: { type: DataTypes.TEXT, allowNull: false },
-    sent_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
-});
-
 const Interview = sequelize.define('Interview', {
     InterviewId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     meeting_link: { type: DataTypes.STRING, allowNull: true },
     scheduled_at: { type: DataTypes.DATE, allowNull: false },
     status: {
-        type: DataTypes.STRING, defaultValue: 'scheduled' // например: scheduled, completed, cancelled
+        type: DataTypes.STRING, defaultValue: 'scheduled'
+    },
+    // ДОБАВЬ ЭТО ПОЛЕ:
+    show_comments_to_candidate: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 });
 
@@ -92,7 +91,52 @@ const GlobalTemplateItem = sequelize.define('GlobalTemplateItem', {
     tableName: 'GlobalTemplateItems'
 });
 
+const Chat = sequelize.define('Chat', {
+    ChatId: { 
+        type: DataTypes.INTEGER, 
+        primaryKey: true, 
+        autoIncrement: true,
+        field: 'chat_id' // В SQL у тебя chat_id
+    },
+    application_id: { 
+        type: DataTypes.INTEGER, 
+        unique: true,
+        allowNull: false 
+    }
+}, { 
+    tableName: 'Chats', 
+    timestamps: true, // Включаем, так как они есть в таблице
+    underscored: false // Выключаем автоматическое превращение updatedAt -> updated_at
+});
+
+const ChatMessage = sequelize.define('ChatMessage', {
+    MessageId: { 
+        type: DataTypes.INTEGER, 
+        primaryKey: true, 
+        autoIncrement: true,
+        field: 'MessageId' // В SQL у тебя MessageId
+    },
+    message_text: { type: DataTypes.TEXT, allowNull: false },
+    sent_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    sender_id: { type: DataTypes.INTEGER, allowNull: false },
+    chat_id: { type: DataTypes.INTEGER, allowNull: false },
+    is_system: { type: DataTypes.BOOLEAN, defaultValue: false }
+}, { 
+    tableName: 'ChatMessages', 
+    timestamps: true, // В таблице есть createdAt и updatedAt
+    underscored: false // Чтобы Sequelize искал 'updatedAt', а не 'updated_at'
+});
+
 // Настройка ассоциаций (связей)
+Application.hasOne(Chat, { foreignKey: 'application_id', onDelete: 'CASCADE' });
+Chat.belongsTo(Application, { foreignKey: 'application_id' });
+
+Chat.hasMany(ChatMessage, { foreignKey: 'chat_id', onDelete: 'CASCADE' });
+ChatMessage.belongsTo(Chat, { foreignKey: 'chat_id' });
+
+User.hasMany(ChatMessage, { foreignKey: 'sender_id' });
+ChatMessage.belongsTo(User, { foreignKey: 'sender_id', as: 'Sender' });
+
 User.hasOne(Profile, { foreignKey: 'UserId', onDelete: 'CASCADE' });
 Profile.belongsTo(User, { foreignKey: 'UserId' });
 
@@ -114,11 +158,6 @@ CandidateProgress.belongsTo(Application, { foreignKey: 'application_id' });
 CheckListTemplate.hasMany(CandidateProgress, { foreignKey: 'template_id' });
 CandidateProgress.belongsTo(CheckListTemplate, { foreignKey: 'template_id' });
 
-User.hasMany(ChatMessage, { foreignKey: 'sender_id', as: 'SentMessages' });
-User.hasMany(ChatMessage, { foreignKey: 'receiver_id', as: 'ReceivedMessages' });
-ChatMessage.belongsTo(User, { foreignKey: 'sender_id', as: 'Sender' });
-ChatMessage.belongsTo(User, { foreignKey: 'receiver_id', as: 'Receiver' });
-
 // Связи для глобальных шаблонов
 User.hasMany(GlobalTemplate, { foreignKey: 'recruiter_id' });
 GlobalTemplate.belongsTo(User, { foreignKey: 'recruiter_id' });
@@ -129,6 +168,15 @@ GlobalTemplateItem.belongsTo(GlobalTemplate, { foreignKey: 'global_template_id' 
 Application.hasMany(Interview, { foreignKey: 'application_id', onDelete: 'CASCADE' });
 Interview.belongsTo(Application, { foreignKey: 'application_id' });
 
+Interview.hasMany(CandidateProgress, {
+    foreignKey: 'application_id',
+    sourceKey: 'application_id'
+});
+CandidateProgress.belongsTo(Interview, {
+    foreignKey: 'application_id',
+    targetKey: 'application_id'
+});
+
 module.exports = {
     sequelize,
     User,
@@ -138,6 +186,7 @@ module.exports = {
     Application,
     CandidateProgress,
     ChatMessage,
+    Chat,
     Interview,
     GlobalTemplate,
     GlobalTemplateItem

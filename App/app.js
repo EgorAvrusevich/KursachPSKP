@@ -8,17 +8,15 @@ const authRoutes = require('./routes/auth.routes');
 const progressRoutes = require('./routes/progress.routes');
 const interviewRoutes = require('./routes/interview.routes');
 const vacancyRoutes = require('./routes/vacancy.routes');
+const applicationRoutes = require('./routes/application.routes')
 const templateRoutes = require('./routes/template.routes');
+const startChatWorker = require('./workers/chatWorker');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json());
-// app.use(cors({
-//     origin: 'http://localhost:5173', // Разрешаем фронтенду
-//     credentials: true
-// }));
 const PORT = 3000;
 
 app.use('/auth', authRoutes);
@@ -26,6 +24,7 @@ app.use('/progress', progressRoutes);
 app.use('/interviews', interviewRoutes);
 app.use('/vacancies', vacancyRoutes);
 app.use('/templates', templateRoutes);
+app.use('/applications', applicationRoutes)
 
 // Логика RabbitMQ
 let channel;
@@ -47,60 +46,43 @@ async function connectRabbit() {
 }
 
 // Socket.io + Sequelize для сохранения сообщений
+// Backend (например, server.js)
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('Новое подключение:', socket.id);
 
-    socket.on('join-interview', ({ interviewId, userId }) => {
-        console.log(`User ${userId} joined interview ${interviewId}`);
-        socket.join(interviewId);
+    socket.on('join-interview', ({ interviewId, userId, role }) => {
+        if (!userId) return;
 
-        // Уведомляем других в комнате, что кто-то подключился
-        socket.to(interviewId).emit('user-joined', { userId });
+        const roomName = `interview-${interviewId}`;
+        socket.join(roomName);
+        console.log(`User ${userId} joined room: ${roomName}`);
+
+        // Оповещаем ВСЕХ КРОМЕ отправителя в этой комнате
+        socket.to(roomName).emit('user-joined', { userId, role });
     });
 
-    // Пересылка WebRTC оффера
+    // Когда кто-то меняет статус (микро/видео)
+    socket.on('update-media-status', ({ interviewId, status }) => {
+        socket.to(`interview-${interviewId}`).emit('status-update', status);
+    });
+
+    // Прямой обмен статусами при подключении
+    socket.on('share-status', ({ interviewId, status }) => {
+        socket.to(`interview-${interviewId}`).emit('status-update', status);
+    });
+
+    // Проброс видео-сигналов
     socket.on('video-offer', ({ interviewId, offer }) => {
-        socket.to(interviewId).emit('video-offer', offer);
+        socket.to(`interview-${interviewId}`).emit('video-offer', offer);
     });
 
-    // Пересылка ответа на оффер
     socket.on('video-answer', ({ interviewId, answer }) => {
-        socket.to(interviewId).emit('video-answer', answer);
+        socket.to(`interview-${interviewId}`).emit('video-answer', answer);
     });
 
-    // Пересылка ICE-кандидатов (технические данные о сетевом пути)
     socket.on('new-ice-candidate', ({ interviewId, candidate }) => {
-        socket.to(interviewId).emit('new-ice-candidate', candidate);
+        socket.to(`interview-${interviewId}`).emit('new-ice-candidate', candidate);
     });
-
-    // Завершение звонка
-    socket.on('leave-interview', (interviewId) => {
-        socket.leave(interviewId);
-        socket.to(interviewId).emit('user-left');
-    });
-
-    socket.on('send_message', async (data) => {
-        try {
-            // 1. Сохраняем в MSSQL через Sequelize
-            const savedMsg = await ChatMessage.create({
-                sender_id: data.sender_id,
-                receiver_id: data.receiver_id,
-                message_text: data.text
-            });
-
-            // 2. Отправляем в RabbitMQ для фоновой обработки
-            if (channel) {
-                channel.sendToQueue('chat_messages', Buffer.from(JSON.stringify(savedMsg)));
-            }
-
-            // 3. Рассылаем участникам
-            io.emit('receive_message', savedMsg);
-        } catch (error) {
-            console.error('Ошибка при сохранении сообщения:', error);
-        }
-    });
-
-    socket.on('disconnect', () => console.log('User disconnected'));
 });
 
 app.get('/health', (req, res) => {
@@ -136,7 +118,10 @@ async function bootstrap() {
     }
 
     await connectRabbit();
-    server.listen(PORT, () => console.log(`🚀 API Server running on port ${PORT}`));
+    server.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        startChatWorker(); // Запуск слушателя RabbitMQ
+    });
 }
 
 bootstrap();

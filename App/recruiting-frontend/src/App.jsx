@@ -12,6 +12,7 @@ import CreateVacancy from './pages/CreateVacancy';
 import InterviewPage from './pages/InterviewRoom';
 import CreateTemplate from './pages/CreateTemplate';
 import MyTemplates from './pages/MyTemplates';
+import ManageVacancy from './pages/ManageVacancy';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -75,7 +76,14 @@ function AppContent() {
               </PrivateRoute>
             }
           />
-
+          <Route
+            path="/manage-vacancy/:id"
+            element={
+              <PrivateRoute role="Recruiter">
+                <ManageVacancy />
+              </PrivateRoute>
+            }
+          />
           {/* 2. Роут для видео-интервью */}
           {/* Мы не вешаем жесткую роль, так как там должны быть и Рекрутер, и Кандидат */}
           <Route

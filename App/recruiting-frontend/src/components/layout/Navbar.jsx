@@ -36,9 +36,6 @@ const Navbar = () => {
                 <Link to="/favorites" className="flex items-center gap-1 hover:text-blue-600">
                   <Heart size={16} /> Избранное
                 </Link>
-                <Link to="/messages" className="flex items-center gap-1 hover:text-blue-600">
-                  <MessageSquare size={16} /> Сообщения
-                </Link>
               </>
             )}
 
@@ -46,9 +43,6 @@ const Navbar = () => {
               <>
                 <Link to="/vacancies/my-vacancies" className="hover:text-blue-600">Мои вакансии</Link>
                 <Link to="/candidates-base" className="hover:text-blue-600">База соискателей</Link>
-                <Link to="/messages" className="flex items-center gap-1 hover:text-blue-600">
-                  <MessageSquare size={16} /> Чат
-                </Link>
                 <Link to="/create-vacancy" className="flex items-center gap-1 text-orange-500 font-bold hover:text-orange-600">
                   <PlusCircle size={18}/> Создать
                 </Link>
