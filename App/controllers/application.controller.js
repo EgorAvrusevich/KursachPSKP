@@ -80,35 +80,35 @@ const updateApplicationStatus = async (req, res) => {
 
         // Если принимаем — готовим прогресс
         if (status === 'Принято' && app.status !== 'Принято') {
-            const templates = await CheckListTemplate.findAll({
-                where: { vacancy_id: app.vacancy_id },
+            // 1. Проверяем, не создавали ли мы уже прогресс для этого отклика
+            const existingProgress = await CandidateProgress.findOne({
+                where: { application_id: id },
                 transaction: t
             });
 
-            if (templates.length > 0) {
-                const progress = templates.map(temp => ({
-                    application_id: id,
-                    template_id: temp.TemplateId,
-                    stage_name: temp.stage_name,
-                    is_completed: false,
-                    order_index: temp.order_index
-                }));
-                await CandidateProgress.bulkCreate(progress, { transaction: t });
+            if (!existingProgress) {
+                const templates = await CheckListTemplate.findAll({
+                    where: { vacancy_id: app.vacancy_id },
+                    transaction: t
+                });
+
+                if (templates.length > 0) {
+                    const progress = templates.map(temp => ({
+                        application_id: id,
+                        template_id: temp.TemplateId,
+                        // Убираем stage_name и order_index, если решили брать их из шаблона через JOIN
+                        is_completed: false
+                    }));
+                    await CandidateProgress.bulkCreate(progress, { transaction: t });
+                }
             }
 
+            // 2. Логика RabbitMQ (событие публикуем всегда при смене на "Принято")
             const recruiterId = req.user.UserId || req.user.id || req.user.sub;
-
-            console.log("Publishing with RecruiterID:", recruiterId);
-
-            if (!recruiterId) {
-                console.error("Критическая ошибка: ID рекрутера не найден в req.user. Проверьте JWT Middleware.");
-                // Не прерываем транзакцию, если чат не критичен, но лучше вернуть ошибку
-            }
-
             await publishEvent('application_accepted', {
                 applicationId: app.ApplicationId,
                 candidateId: app.candidate_id,
-                recruiterId: recruiterId // Теперь здесь будет значение, а не undefined
+                recruiterId: recruiterId
             });
         }
 
@@ -194,11 +194,68 @@ const openChat = async (req, res) => {
     }
 };
 
+const getApplicationChecklist = async (req, res) => {
+    try {
+        const { id } = req.params; // ID отклика
+        const userId = req.user.UserId || req.user.id;
+
+        // 1. Находим отклик с базовой проверкой
+        const app = await Application.findByPk(id);
+
+        if (!app) {
+            return res.status(404).json({ message: "Отклик не найден" });
+        }
+
+        // 2. Безопасность: кандидат видит только свой чек-лист
+        if (Number(app.candidate_id) !== Number(userId)) {
+            return res.status(403).json({ message: "Нет доступа к этому чек-листу" });
+        }
+
+        // 3. Проверка статуса (учитываем возможные пробелы из MSSQL)
+        if (app.status.trim() !== 'Принято') {
+            return res.status(403).json({ message: "Чек-лист доступен только после принятия отклика" });
+        }
+
+        // 4. Загружаем прогресс, ПРИСОЕДИНЯЯ шаблоны
+        const checklist = await CandidateProgress.findAll({
+            where: { application_id: id },
+            include: [
+                {
+                    model: CheckListTemplate,
+                    required: true, // INNER JOIN, чтобы не получить пустые этапы
+                    attributes: ['stage_name', 'order_index'] // берем данные отсюда
+                }
+            ],
+            // Сортируем по полю из присоединенной таблицы CheckListTemplate
+            order: [[CheckListTemplate, 'order_index', 'ASC']]
+        });
+
+        // 5. Мапим данные для фронтенда
+        const formattedChecklist = checklist.map(item => ({
+            id: item.ProgressId || item.id,
+            // Данные берем из вложенного объекта CheckListTemplate
+            title: item.CheckListTemplate?.stage_name || "Без названия",
+            description: "Этап отбора",
+            is_completed: item.is_completed,
+            order: item.CheckListTemplate?.order_index
+        }));
+
+        res.json(formattedChecklist);
+    } catch (error) {
+        console.error("Ошибка получения чек-листа:", error);
+        res.status(500).json({
+            message: "Ошибка сервера при загрузке чек-листа",
+            details: error.message
+        });
+    }
+};
+
 module.exports = {
     getMyApplications,
     createApplication,
     updateApplicationStatus,
     getApplicationsByVacancy,
     deleteApplication,
-    openChat
+    openChat,
+    getApplicationChecklist
 };

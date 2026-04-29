@@ -4,8 +4,8 @@ import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ChatWindow from '../components/ChatWindow'; // Импорт нашего чата
 import {
-    Briefcase, Calendar, Clock, MessageSquare,
-    X, CheckCircle2, Timer, AlertCircle
+    Briefcase, Calendar, Clock, MessageSquare, ChevronRight,
+    X, CheckCircle2, Timer, AlertCircle, ListChecks
 } from 'lucide-react';
 
 const parseJwt = (token) => {
@@ -22,6 +22,10 @@ const MyApplications = () => {
     const [selectedApp, setSelectedApp] = useState(null);
     const [activeTab, setActiveTab] = useState('details');
 
+    // Новые стейты для чек-листа
+    const [checklist, setChecklist] = useState([]);
+    const [loadingChecklist, setLoadingChecklist] = useState(false);
+
     // Получаем ID текущего пользователя из системы (кандидата)
     const token = localStorage.getItem('token');
     const userData = token ? parseJwt(token) : null;
@@ -31,8 +35,6 @@ const MyApplications = () => {
         const fetchApps = async () => {
             try {
                 const res = await api.get('/applications/my');
-                // Проверь, что бэкенд возвращает массив. 
-                // Если возвращается объект с полем, например res.data.applications, поправь здесь.
                 setApplications(res.data);
             } catch (err) {
                 console.error("Ошибка загрузки откликов", err);
@@ -42,6 +44,26 @@ const MyApplications = () => {
         };
         fetchApps();
     }, []);
+
+    useEffect(() => {
+        if (activeTab === 'checklist' && selectedApp) {
+            const fetchChecklist = async () => {
+                setLoadingChecklist(true);
+                try {
+                    const appId = selectedApp.ApplicationId || selectedApp.id;
+                    const res = await api.get(`/applications/${appId}/checklist`);
+                    setChecklist(res.data); // Ожидаем массив [{id, title, description, is_completed}]
+                } catch (err) {
+                    console.error("Ошибка загрузки чек-листа", err);
+                } finally {
+                    setLoadingChecklist(false);
+                }
+            };
+            fetchChecklist();
+        }
+    }, [activeTab, selectedApp]);
+
+    const isAccepted = selectedApp?.status?.trim() === 'Принято';
 
     // Вспомогательная функция для стилей статуса
     const getStatusStyle = (status) => {
@@ -69,52 +91,53 @@ const MyApplications = () => {
         <div className="max-w-4xl mx-auto p-6 space-y-6">
             <h1 className="text-3xl font-black text-slate-800">Мои отклики</h1>
 
-            <div className="grid gap-4">
+            <div className="grid gap-4 relative z-0">
                 {applications.map(app => {
-                    // Очищаем статус от лишних пробелов MSSQL
                     const cleanStatus = app.status ? app.status.trim() : '';
                     const appId = app.ApplicationId || app.id;
 
                     return (
-                        <Card
+                        <div
                             key={appId}
-                            className="p-5 cursor-pointer hover:shadow-md transition-all border-l-4 border-blue-500"
-                            // Пробуем остановить всплытие, если внутри Card есть другие интерактивные элементы
+                            className="relative z-10 cursor-pointer group"
                             onClick={(e) => {
-                                console.log("!!! Клик зафиксирован !!!");
-                                console.log("Данные отклика:", app);
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log("!!! КЛИК ВЫПОЛНЕН !!!", app);
                                 setSelectedApp(app);
                                 setActiveTab('details');
                             }}
                         >
-                            <div className="flex justify-between items-center pointer-events-none">
-                                {/* pointer-events-none гарантирует, что клик пройдет сквозь иконки прямо на Card */}
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-                                        <Briefcase size={24} />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-900">
-                                            {app.Vacancy?.title || "Вакансия #" + app.vacancy_id}
-                                        </h3>
-                                        <p className="text-sm text-slate-500 flex items-center gap-1">
-                                            <Calendar size={14} /> Отклик от {new Date(app.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusStyle(cleanStatus)}`}>
-                                        {cleanStatus}
-                                    </span>
-                                    {cleanStatus === 'Принято' && (
-                                        <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center animate-pulse">
-                                            <MessageSquare size={16} />
+                            {/* Используем обычный div, если Card капризничает */}
+                            <div className="p-5 bg-white rounded-xl border border-slate-200 border-l-4 border-l-blue-500 shadow-sm group-hover:shadow-md transition-all">
+                                <div className="flex justify-between items-center pointer-events-none">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+                                            <Briefcase size={24} />
                                         </div>
-                                    )}
+                                        <div>
+                                            <h3 className="font-bold text-slate-900">
+                                                {app.Vacancy?.title || "Без названия"}
+                                            </h3>
+                                            <p className="text-sm text-slate-500 flex items-center gap-1">
+                                                <Calendar size={14} /> Отклик от {app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '---'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusStyle(cleanStatus)}`}>
+                                            {cleanStatus}
+                                        </span>
+                                        {cleanStatus === 'Принято' && (
+                                            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center animate-pulse">
+                                                <MessageSquare size={16} />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </Card>
+                        </div>
                     );
                 })}
             </div>
@@ -122,23 +145,24 @@ const MyApplications = () => {
             {/* МОДАЛКА ДЕТАЛЕЙ И ЧАТА */}
             {selectedApp && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <Card className="max-w-2xl w-full max-h-[90vh] flex flex-col p-0 shadow-2xl border-none overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <Card className="max-w-2xl w-full max-h-[90vh] flex flex-col p-0 shadow-2xl border-none overflow-hidden">
 
                         {/* Tabs Header */}
                         <div className="p-4 border-b flex justify-between items-center bg-white">
                             <div className="flex gap-6 ml-2">
-                                <button
-                                    onClick={() => setActiveTab('details')}
-                                    className={`pb-2 text-sm font-bold transition-colors ${activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    Детали вакансии
+                                <button onClick={() => setActiveTab('details')} className={`pb-2 text-sm font-bold ${activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400'}`}>
+                                    Детали
                                 </button>
-                                <button
-                                    onClick={() => setActiveTab('chat')}
-                                    className={`pb-2 text-sm font-bold transition-colors flex items-center gap-2 ${activeTab === 'chat' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    Чат с рекрутером
-                                    {selectedApp.status === 'Принято' && <span className="w-2 h-2 bg-green-500 rounded-full"></span>}
+
+                                {/* Чек-лист виден ТОЛЬКО если принято */}
+                                {isAccepted && (
+                                    <button onClick={() => setActiveTab('checklist')} className={`pb-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'checklist' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400'}`}>
+                                        Чек-лист <ListChecks size={16} />
+                                    </button>
+                                )}
+
+                                <button onClick={() => setActiveTab('chat')} className={`pb-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'chat' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400'}`}>
+                                    Чат {isAccepted && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
                                 </button>
                             </div>
                             <button onClick={() => setSelectedApp(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400">
@@ -148,37 +172,53 @@ const MyApplications = () => {
 
                         {/* Content Area */}
                         <div className="flex-1 overflow-y-auto bg-slate-50">
-                            {activeTab === 'details' ? (
+                            {activeTab === 'details' && (
                                 <div className="p-8 space-y-6">
-                                    <div className="space-y-2">
-                                        <h2 className="text-2xl font-black text-slate-900">{selectedApp.Vacancy?.title}</h2>
-                                        <div className="flex items-center gap-4 text-slate-500 text-sm">
-                                            <span className="flex items-center gap-1"><Clock size={14} /> {selectedApp.status}</span>
-                                        </div>
-                                    </div>
-                                    <div className="p-6 bg-white border border-slate-200 rounded-2xl">
+                                    <h2 className="text-2xl font-black text-slate-900">{selectedApp.Vacancy?.title}</h2>
+                                    <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
                                         <p className="text-[10px] text-slate-400 uppercase font-black mb-3">Описание вакансии</p>
-                                        <div className="text-slate-600 leading-relaxed">
-                                            {selectedApp.Vacancy?.description}
-                                        </div>
+                                        <div className="text-slate-600 leading-relaxed">{selectedApp.Vacancy?.description}</div>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="p-4 h-full min-h-[450px]">
-                                    {selectedApp.status === 'Принято' ? (
-                                        <ChatWindow
-                                            applicationId={selectedApp.ApplicationId}
-                                            currentUserId={currentUserId}
-                                        />
+                            )}
+
+                            {activeTab === 'checklist' && (
+                                <div className="p-8 space-y-4">
+                                    <h2 className="text-xl font-bold text-slate-800 mb-6">Этапы подготовки</h2>
+
+                                    {loadingChecklist ? (
+                                        <div className="py-10 text-center text-slate-400">Загрузка этапов...</div>
+                                    ) : checklist.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {checklist.map((item) => (
+                                                <div key={item.id} className={`flex items-start gap-4 p-5 rounded-2xl border transition-all ${item.is_completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-200'}`}>
+                                                    <div className={`mt-1 p-1 rounded-full ${item.is_completed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                                                        <CheckCircle2 size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <p className={`font-bold ${item.is_completed ? 'text-emerald-900' : 'text-slate-700'}`}>{item.title}</p>
+                                                        <p className="text-sm text-slate-500">{item.description}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center h-full text-center p-10 space-y-4">
-                                            <div className="p-6 bg-white rounded-3xl shadow-sm border border-slate-100">
-                                                <Timer size={48} className="text-amber-500 mx-auto mb-4" />
-                                                <h3 className="text-lg font-bold text-slate-800">Чат пока недоступен</h3>
-                                                <p className="text-slate-500 mt-2 max-w-xs">
-                                                    Рекрутер откроет чат, как только рассмотрит ваш отклик и переведет его в статус <span className="text-emerald-600 font-bold">"Принято"</span>.
-                                                </p>
-                                            </div>
+                                        <div className="p-10 text-center bg-white rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+                                            Список задач пока пуст. Ожидайте действий от рекрутера.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'chat' && (
+                                <div className="p-4 h-full min-h-[450px]">
+                                    {isAccepted ? (
+                                        <ChatWindow applicationId={selectedApp.ApplicationId || selectedApp.id} currentUserId={currentUserId} />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-center p-10">
+                                            <Timer size={48} className="text-amber-500 mb-4" />
+                                            <h3 className="text-lg font-bold text-slate-800">Чат недоступен</h3>
+                                            <p className="text-slate-500">Дождитесь одобрения вашей кандидатуры.</p>
                                         </div>
                                     )}
                                 </div>
