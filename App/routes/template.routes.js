@@ -13,5 +13,6 @@ router.get('/global/:id', authenticateToken, globalTemplateController.getGlobalT
 router.put('/global/:id', authenticateToken, globalTemplateController.updateGlobalTemplate);
 router.get('/global', authenticateToken, globalTemplateController.getMyGlobalTemplates);
 router.post('/create', authenticateToken, globalTemplateController.createGlobalTemplate);
+router.delete('/:id', authenticateToken, globalTemplateController.deleteGlobalTemplate);
 
 module.exports = router;

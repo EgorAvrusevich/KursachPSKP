@@ -13,6 +13,7 @@ import InterviewPage from './pages/InterviewRoom';
 import CreateTemplate from './pages/CreateTemplate';
 import MyTemplates from './pages/MyTemplates';
 import ManageVacancy from './pages/ManageVacancy';
+import EditVacancy from './pages/EditVacancy';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -81,6 +82,14 @@ function AppContent() {
             element={
               <PrivateRoute role="Recruiter">
                 <ManageVacancy />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/edit-vacancy/:id"
+            element={
+              <PrivateRoute role="Recruiter">
+                <EditVacancy />
               </PrivateRoute>
             }
           />

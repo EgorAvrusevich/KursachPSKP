@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import socket from '../services/socket';
 import api from '../api';
@@ -49,23 +49,17 @@ const InterviewPage = () => {
         </div>
     );
 
-    const tokenData = useMemo(() => {
-        const token = localStorage.getItem('token');
-        if (!token) return null;
+    const getUserIdFromToken = (token) => {
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return { id: payload.id, role: payload.role };
-        } catch { return null; }
-    }, []);
-
-    const currentUserId = user?.id || tokenData?.id;
-    const currentUserRole = user?.role || tokenData?.role;
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            return JSON.parse(window.atob(base64)).id;
+        } catch (e) { return null; }
+    };
 
     const fetchChecklist = useCallback(async () => {
         try {
             const res = await api.get(`/interviews/${id}`);
-            // ВАЖНО: используйте функциональное обновление стейта, 
-            // чтобы избежать зависимостей от самого checklist
             setChecklist(res.data?.Application?.CandidateProgresses || []);
             setShowComments(res.data.show_comments_to_candidate);
         } catch (err) {
@@ -73,31 +67,17 @@ const InterviewPage = () => {
         }
     }, [id]);
 
-    const fetchChecklistRef = useRef(fetchChecklist);
-
-    // Синхронизируем Ref
-    useEffect(() => {
-        fetchChecklistRef.current = fetchChecklist;
-    }, [fetchChecklist]);
-
     // 1. Загрузка данных интервью
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const res = await api.get(`/interviews/${id}`);
-                const data = res.data;
-                setInterviewData(data);
-
-                // ИСПРАВЛЕННЫЙ ПУТЬ: данные лежат в data.Application.CandidateProgresses
-                const progressStages = data?.Application?.CandidateProgresses;
-                const templateStages = data?.Application?.Vacancy?.CheckListTemplates;
-
-                const stages = progressStages && progressStages.length > 0
-                    ? progressStages
-                    : templateStages || [];
-
+                setInterviewData(res.data);
+                const stages = res.data?.CandidateProgresses?.length > 0
+                    ? res.data.CandidateProgresses
+                    : res.data?.Application?.Vacancy?.CheckListTemplates || [];
                 setChecklist(stages);
-                setShowComments(data.show_comments_to_candidate);
+                setShowComments(res.data.show_comments_to_candidate);
                 setLoading(false);
             } catch (err) {
                 console.error("Ошибка загрузки:", err);
@@ -109,6 +89,7 @@ const InterviewPage = () => {
 
     // 2. Инициализация WebRTC и Socket (только ОДИН раз при входе)
     useEffect(() => {
+        const currentUserId = user?.id || user?.UserId || getUserIdFromToken(user?.token);
         if (!user || !currentUserId || !id) return;
 
         const peerConnection = new RTCPeerConnection({
@@ -193,10 +174,7 @@ const InterviewPage = () => {
 
         socket.on('checklist-update', () => {
             console.log("Получено обновление чек-листа");
-            // Вызываем именно текущее значение из Ref
-            if (fetchChecklistRef.current) {
-                fetchChecklistRef.current();
-            }
+            fetchChecklist();
         });
 
         return () => {
@@ -239,25 +217,6 @@ const InterviewPage = () => {
                 interviewId: id,
                 status: { isMicOn, isVideoOn: newStatus }
             });
-        }
-    };
-
-    const handleToggleComments = async () => {
-        if (user?.role !== 'Recruiter') return;
-
-        const newValue = !showComments;
-        try {
-            // ИСПОЛЬЗУЕМ PATCH вместо GET, так как мы ОБНОВЛЯЕМ данные
-            // И передаем объект с данными вторым аргументом
-            await api.patch(`/interviews/${id}/settings`, {
-                show_comments_to_candidate: newValue
-            });
-
-            setShowComments(newValue);
-            socket.emit('settings-update', { interviewId: id, showComments: newValue });
-            socket.emit('checklist-update', { interviewId: id });
-        } catch (err) {
-            console.error("Ошибка при сохранении настроек:", err);
         }
     };
 
@@ -345,7 +304,7 @@ const InterviewPage = () => {
                         <button
                             onClick={async () => {
                                 const newValue = !showComments;
-                                await api.patch(`/interviews/${id}/settings`, { show_comments_to_candidate: newValue }); // Проверь метод (PATCH/PUT)
+                                await api.get(`/interviews/${id}/settings`, { show_comments_to_candidate: newValue }); // Проверь метод (PATCH/PUT)
                                 setShowComments(newValue);
                                 // Оповещаем кандидата и о смене настроек, и о необходимости обновить данные
                                 socket.emit('settings-update', { interviewId: id, showComments: newValue });
@@ -358,47 +317,56 @@ const InterviewPage = () => {
                     )}
                 </div>
 
-                <div className="flex-grow overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+                <div className="flex-grow overflow-y-auto p-6 space-y-4 bg-slate-50/30 custom-scrollbar">
                     {checklist.map((stage, index) => {
-                        console.log(stage);
-                        const stageId = stage.ProgressId || stage.id || stage.id;
-                        const stageName = stage.CheckListTemplate?.name || stage.CheckListTemplate?.stage_name || stage.stage_name || `Этап ${index + 1}`;
+                        const currentId = stage.ProgressId || stage.id;
+                        const canSeeComment = user?.role === 'Recruiter' || showComments;
+
                         return (
-                            <div key={stageId || index} className={`p-4 rounded-2xl border-2 transition-all ${stage.is_completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-transparent shadow-sm'}`}>
-                                <div className="flex items-center justify-between cursor-pointer" onClick={() => {
-                                    if (currentUserRole !== 'Recruiter' || !stageId) return;
-                                    const newStatus = !stage.is_completed;
-
-                                    api.patch(`/interviews/progress/${stageId}`, { is_completed: newStatus }).then(() => {
-                                        // 1. Обновляем у себя локально
-                                        setChecklist(prev => prev.map(item =>
-                                            (item.ProgressId === stageId || item.id === stageId) ? { ...item, is_completed: newStatus } : item
-                                        ));
-
-                                        // 2. ОПОВЕЩАЕМ КАНДИДАТА (Важно!)
-                                        socket.emit('checklist-update', { interviewId: id });
-                                    });
-                                }}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${stage.is_completed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{index + 1}</div>
-                                        <span className="font-bold text-[11px] text-slate-700 uppercase tracking-tight">{stageName}</span>
+                            <div key={currentId || index} className={`p-5 rounded-3xl border-2 transition-all ${stage.is_completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-transparent'}`}>
+                                <div className="flex items-center justify-between cursor-pointer"
+                                    onClick={() => {
+                                        if (currentUserRole !== 'Recruiter' || !stageId) return;
+                                        const newStatus = !stage.is_completed;
+                                        api.patch(`/interviews/progress/${stageId}`, { is_completed: newStatus }).then(() => {
+                                            setChecklist(prev => prev.map(item => (item.ProgressId === stageId || item.id === stageId) ? { ...item, is_completed: newStatus } : item));
+                                            // Отправляем сигнал в сокет
+                                            socket.emit('checklist-update', { interviewId: id });
+                                        });
+                                    }}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-black ${stage.is_completed ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                            {index + 1}
+                                        </div>
+                                        <span className="font-bold text-sm text-slate-600">
+                                            {stage.stage_name || stage.CheckListTemplate?.name}
+                                        </span>
                                     </div>
-                                    {stage.is_completed && <CheckCircle2 className="text-emerald-500" size={18} />}
+                                    {stage.is_completed && <CheckCircle2 className="text-emerald-500" size={24} />}
                                 </div>
-                                {(currentUserRole === 'Recruiter' || showComments) && (
-                                    <div className="mt-3">
-                                        {currentUserRole === 'Recruiter' ? (
-                                            <textarea className="w-full p-2 bg-slate-50 rounded-xl text-[11px] border-none focus:ring-1 focus:ring-blue-500/50 resize-none italic" placeholder="Заметка рекрутера..." defaultValue={stage.comment} onBlur={(e) => {
-                                                const newComment = e.target.value;
-                                                api.patch(`/interviews/progress/${stageId}`, { comment: newComment }).then(() => {
-                                                    if (showComments) {
-                                                        socket.emit('checklist-update', { interviewId: id });
-                                                    }
-                                                });
-                                            }} />
-                                        ) : (stage.comment && <div className="p-2 bg-blue-50/50 rounded-lg border border-blue-100 text-[10px] text-blue-700 italic">{stage.comment}</div>)}
-                                    </div>
-                                )}
+
+                                {
+                                    user?.role === 'Recruiter' ? (
+                                        <textarea
+                                            className="..."
+                                            placeholder="Заметка рекрутера..."
+                                            defaultValue={stage.comment}
+                                            onBlur={async (e) => {
+                                                if (currentUserRole === 'Recruiter') {
+                                                    await api.patch(`/interviews/progress/${progressId}`, { comment: e.target.value });
+                                                    // Сообщаем кандидату, что комментарий обновился
+                                                    socket.emit('checklist-update', { interviewId: id });
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        showComments && stage.comment && (
+                                            <div className="mt-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                                                <p className="text-[11px] text-blue-600 leading-relaxed">{stage.comment}</p>
+                                            </div>
+                                        )
+                                    )
+                                }
                             </div>
                         );
                     })}

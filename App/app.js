@@ -16,7 +16,13 @@ const startMessageWorker = require('./workers/MessageWorker');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:5173", // Лучше указать явно вместо "*"
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+});
 
 app.use(express.json());
 const PORT = 3000;
@@ -33,6 +39,8 @@ let channel;
 async function connectRabbit() {
     const rabbitUrl = `amqp://${process.env.RABBITMQ_HOST || 'rabbitmq'}`;
     const retryDelay = 5000;
+    let retryCount = 0;
+    const maxRetries = 50; // Максимум 50 попыток (~4 минуты)
     while (true) {
         try {
             const connection = await amqp.connect(rabbitUrl);
@@ -41,11 +49,17 @@ async function connectRabbit() {
             console.log('✅ Connected to RabbitMQ');
             break;
         } catch (err) {
-            console.log(`❌ RabbitMQ not ready, retrying in ${retryDelay / 1000}s...`);
+            retryCount++;
+            if (retryCount >= maxRetries) {
+                console.error('❌ Превышено максимальное количество попыток подключения к RabbitMQ');
+                process.exit(1);
+            }
+            console.log(`❌ RabbitMQ not ready, retrying in ${retryDelay / 1000}s... (попытка ${retryCount}/${maxRetries})`);
             await new Promise(res => setTimeout(res, retryDelay));
         }
     }
 }
+
 
 // Socket.io + Sequelize для сохранения сообщений
 // Backend (например, server.js)
@@ -53,6 +67,7 @@ io.on('connection', (socket) => {
     console.log('Новое подключение:', socket.id);
 
     socket.on('join-interview', ({ interviewId, userId, role }) => {
+        console.log(`Пользователь ${userId} (${role}) входит в комнату ${interviewId}`);
         if (!userId) return;
 
         const roomName = `interview-${interviewId}`;
@@ -86,6 +101,12 @@ io.on('connection', (socket) => {
         socket.to(`interview-${interviewId}`).emit('new-ice-candidate', candidate);
     });
 
+    socket.on('checklist-update', ({ interviewId }) => {
+        // .to(id) отправляет всем в комнате
+        // .broadcast отправляет всем, КРОМЕ отправителя (чтобы рекрутер сам себя не рефрешил)
+        socket.to(`interview-${interviewId}`).emit('checklist-update');
+    });
+
     socket.on("join_chat", (chatId) => {
         const roomName = `chat_${chatId}`;
         socket.join(roomName);
@@ -97,14 +118,16 @@ io.on('connection', (socket) => {
 
         const messageToBroadcast = {
             MessageId: Date.now(),
-            chat_id: chatId,      // Убедись, что на фронте msg.chat_id или подправь под msg.ChatId
-            sender_id: senderId,
+            chat_id: chatId,      // Убедись, что фронт ожидает именно sender_id/chat_id
+            sender_id: senderId,  // В ChatWindow.jsx у тебя: msg.sender_id === currentUserId
             message_text: text,
             sent_at: new Date(),
             is_system: false
         };
 
-        // Рассылаем всем в комнату chat_{id}
+        console.log(`Отправка сообщения в комнату chat_${chatId}`);
+
+        // Используем io.to().emit(), чтобы сообщение получили все в комнате
         io.to(`chat_${chatId}`).emit("new_message", messageToBroadcast);
 
         try {
@@ -128,21 +151,16 @@ async function bootstrap() {
     // Ожидание и синхронизация БД
     let connected = false;
 
-    for (let i = 0; i < 15; i++) { // Увеличь до 15 попыток
+    for (let i = 0; i < 15; i++) {
         try {
-            // 1. Сначала просто проверяем, отвечает ли сервер (через master)
-            await sequelize.authenticate();
-
-            // 2. Пытаемся синхронизировать модели
-            // Если база еще "просыпается", ошибка вылетит здесь
-            await sequelize.sync();
-
+            await sequelize.authenticate(); // ПРОВЕРКА 1
+            await sequelize.sync();         // ПРОВЕРКА 2
             console.log('✅ Connected to MSSQL & Models Synced');
             connected = true;
-            break;
+            break; // ВЫХОД ИЗ ЦИКЛА
         } catch (error) {
             console.log(`⚠️ DB NOT READY (Attempt ${i + 1}): ${error.message}`);
-            // Ждем чуть дольше между попытками
+            console.error(error); // Выведет полный стек ошибки
             await new Promise(res => setTimeout(res, 7000));
         }
     }

@@ -117,7 +117,7 @@ const CreateTemplate = () => {
             {isEditMode ? 'Редактирование стандарта' : 'Новый стандарт этапа'}
           </h1>
         </div>
-        <Link to="/my-templates" className="text-sm font-medium text-gray-400 hover:text-blue-600 flex items-center gap-1 transition-colors group">
+        <Link to="/templates/my" className="text-sm font-medium text-gray-400 hover:text-blue-600 flex items-center gap-1 transition-colors group">
           <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> к списку
         </Link>
       </div>

@@ -98,7 +98,7 @@ const Home = () => {
                       </span>
                       <span className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                         <MapPin size={18} className="text-red-400" />
-                        {vacancy.status === 'open' ? 'Удаленно / Офис' : vacancy.status}
+                        {vacancy.city ? vacancy.city : 'Не указано'}
                       </span>
                     </div>
                   </div>

@@ -129,9 +129,55 @@ const updateGlobalTemplate = async (req, res) => {
     }
 };
 
+const deleteGlobalTemplate = async (req, res) => {
+    // Начинаем транзакцию, чтобы удаление было атомарным
+    const t = await sequelize.transaction();
+
+    try {
+        const { id } = req.params;
+        const recruiter_id = req.user.id;
+
+        // 1. Проверяем существование шаблона и права доступа (принадлежит ли он рекрутеру)
+        const template = await GlobalTemplate.findOne({
+            where: {
+                GlobalTemplateId: id,
+                recruiter_id: recruiter_id
+            },
+            transaction: t
+        });
+
+        if (!template) {
+            await t.rollback();
+            return res.status(404).json({ message: "Шаблон не найден или у вас нет прав на его удаление" });
+        }
+
+        // 2. Удаляем связанные пункты шаблона
+        // Хотя у вас в моделях прописано onDelete: 'CASCADE', явное удаление в транзакции надежнее для MSSQL
+        await GlobalTemplateItem.destroy({
+            where: { global_template_id: id },
+            transaction: t
+        });
+
+        // 3. Удаляем сам шаблон
+        await template.destroy({ transaction: t });
+
+        // Фиксируем изменения в БД
+        await t.commit();
+        
+        res.json({ message: "Шаблон и его пункты успешно удалены" });
+
+    } catch (error) {
+        // В случае ошибки откатываем все изменения
+        if (t) await t.rollback();
+        console.error("Ошибка при удалении шаблона:", error);
+        res.status(500).json({ message: "Ошибка сервера при удалении" });
+    }
+};
+
 module.exports = { 
     getMyGlobalTemplates, 
     createGlobalTemplate, 
     getGlobalTemplateById,
-    updateGlobalTemplate
+    updateGlobalTemplate,
+    deleteGlobalTemplate
 };

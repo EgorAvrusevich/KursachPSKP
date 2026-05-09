@@ -41,16 +41,50 @@ async function startMessageWorker() {
         } catch (err) {
             console.error("❌ Ошибка сохранения сообщения:", err.message);
 
-            // КРИТИЧЕСКИЙ МОМЕНТ: Если данные битые (нет ID), 
+            // Проверяем, есть ли свойство attempts в заголовках сообщения
+            const attempts = (msg.properties.headers && msg.properties.headers.attempts) || 0;
+            const maxAttempts = 3;
+
+            // КРИТИЧЕСКИЙ МОМЕНТ: Если данные битые (нет ID или ошибка валидации), 
             // мы делаем ack, чтобы сообщение УДАЛИЛОСЬ и не вешало докер
             if (err.name === 'SequelizeValidationError' || !senderId) {
-                console.log("Удаляем битое сообщение из очереди");
+                console.log("Удаляем битое сообщение из очереди (валидация)");
+                channel.ack(msg);
+            } else if (attempts >= maxAttempts) {
+                // Если превышено максимальное количество попыток, удаляем сообщение
+                // и отправляем в dead-letter queue или логируем для ручной обработки
+                console.error(`❌ Сообщение удалено после ${attempts} попыток. Требует ручной обработки.`, {
+                    chatId,
+                    senderId,
+                    error: err.message
+                });
                 channel.ack(msg);
             } else {
-                // Если ошибка временная (база упала), возвращаем в очередь
-                channel.nack(msg, false, true);
+                // Если ошибка временная (база упала, таймаут и т.д.), 
+                // возвращаем в очередь с увеличением счетчика попыток
+                const newHeaders = {
+                    ...(msg.properties.headers || {}),
+                    attempts: attempts + 1
+                };
+                
+                console.log(`⚠️ Временная ошибка. Возвращаем сообщение в очередь (попытка ${attempts + 1}/${maxAttempts})`);
+                
+                channel.nack(msg, false, false); // Не requeue, а reject с requeue=false
+                
+                // Публикуем сообщение заново с обновленными заголовками
+                channel.publish(
+                    '',
+                    msg.fields.routingKey,
+                    msg.content,
+                    {
+                        ...msg.properties,
+                        headers: newHeaders,
+                        deliveryMode: 2 // persistent
+                    }
+                );
             }
         }
+
     });
 }
 

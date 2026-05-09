@@ -6,14 +6,38 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        // Проверяем наличие токена и роли в localStorage при загрузке страницы
+    const checkAuth = () => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('role');
-        if (token) {
-            setUser({ token, role });
+        
+        if (token && role) {
+            // Если данные в стейте отличаются от хранилища, обновляем
+            setUser((prev) => {
+                if (prev?.token !== token || prev?.role !== role) {
+                    return { token, role };
+                }
+                return prev;
+            });
+        } else {
+            setUser(null);
         }
         setLoading(false);
+    };
+
+    useEffect(() => {
+        // 1. Проверка при первой загрузке
+        checkAuth();
+
+        // 2. СЛУШАТЕЛЬ СОБЫТИЙ: Обновляет состояние, если localStorage 
+        // изменился в другой вкладке браузера
+        const handleStorageChange = (e) => {
+            if (e.key === 'token' || e.key === 'role') {
+                checkAuth();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
     const login = (userData) => {
@@ -29,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, checkAuth }}>
             {!loading && children}
         </AuthContext.Provider>
     );

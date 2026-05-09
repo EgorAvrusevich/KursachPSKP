@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import ChatWindow from '../components/ChatWindow'; // Импорт нашего чата
+import ChatWindow from '../components/ChatWindow'; 
 import {
     Briefcase, Calendar, Clock, MessageSquare, ChevronRight,
-    X, CheckCircle2, Timer, AlertCircle, ListChecks
+    X, CheckCircle2, Timer, AlertCircle, ListChecks,
+    MapPin, DollarSign, UserCircle, ShieldCheck, AlignLeft
 } from 'lucide-react';
 
 const parseJwt = (token) => {
@@ -22,11 +23,9 @@ const MyApplications = () => {
     const [selectedApp, setSelectedApp] = useState(null);
     const [activeTab, setActiveTab] = useState('details');
 
-    // Новые стейты для чек-листа
     const [checklist, setChecklist] = useState([]);
     const [loadingChecklist, setLoadingChecklist] = useState(false);
 
-    // Получаем ID текущего пользователя из системы (кандидата)
     const token = localStorage.getItem('token');
     const userData = token ? parseJwt(token) : null;
     const currentUserId = userData?.id;
@@ -52,7 +51,7 @@ const MyApplications = () => {
                 try {
                     const appId = selectedApp.ApplicationId || selectedApp.id;
                     const res = await api.get(`/applications/${appId}/checklist`);
-                    setChecklist(res.data); // Ожидаем массив [{id, title, description, is_completed}]
+                    setChecklist(res.data);
                 } catch (err) {
                     console.error("Ошибка загрузки чек-листа", err);
                 } finally {
@@ -63,12 +62,16 @@ const MyApplications = () => {
         }
     }, [activeTab, selectedApp]);
 
-    const isAccepted = selectedApp?.status?.trim() === 'Принято';
+    // ОБНОВЛЕННАЯ ЛОГИКА ПРОВЕРКИ СТАТУСА
+    const appStatus = selectedApp?.status?.trim() || '';
+    const isAccepted = appStatus === 'Принято' || appStatus === 'Рассмотрение';
+    const isChecklistVisible = isAccepted;
 
-    // Вспомогательная функция для стилей статуса
     const getStatusStyle = (status) => {
-        switch (status) {
+        const s = status?.trim();
+        switch (s) {
             case 'Принято': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            case 'Рассмотрение': return 'bg-blue-50 text-blue-700 border-blue-100';
             case 'Отказ': return 'bg-red-50 text-red-700 border-red-100';
             default: return 'bg-amber-50 text-amber-700 border-amber-100';
         }
@@ -100,15 +103,11 @@ const MyApplications = () => {
                         <div
                             key={appId}
                             className="relative z-10 cursor-pointer group"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log("!!! КЛИК ВЫПОЛНЕН !!!", app);
+                            onClick={() => {
                                 setSelectedApp(app);
                                 setActiveTab('details');
                             }}
                         >
-                            {/* Используем обычный div, если Card капризничает */}
                             <div className="p-5 bg-white rounded-xl border border-slate-200 border-l-4 border-l-blue-500 shadow-sm group-hover:shadow-md transition-all">
                                 <div className="flex justify-between items-center pointer-events-none">
                                     <div className="flex items-center gap-4">
@@ -142,20 +141,18 @@ const MyApplications = () => {
                 })}
             </div>
 
-            {/* МОДАЛКА ДЕТАЛЕЙ И ЧАТА */}
             {selectedApp && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <Card className="max-w-2xl w-full max-h-[90vh] flex flex-col p-0 shadow-2xl border-none overflow-hidden">
 
-                        {/* Tabs Header */}
                         <div className="p-4 border-b flex justify-between items-center bg-white">
                             <div className="flex gap-6 ml-2">
                                 <button onClick={() => setActiveTab('details')} className={`pb-2 text-sm font-bold ${activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400'}`}>
                                     Детали
                                 </button>
 
-                                {/* Чек-лист виден ТОЛЬКО если принято */}
-                                {isAccepted && (
+                                {/* ИСПРАВЛЕНО: Теперь показываем чек-лист и при 'Рассмотрении' */}
+                                {isChecklistVisible && (
                                     <button onClick={() => setActiveTab('checklist')} className={`pb-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'checklist' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400'}`}>
                                         Чек-лист <ListChecks size={16} />
                                     </button>
@@ -170,22 +167,57 @@ const MyApplications = () => {
                             </button>
                         </div>
 
-                        {/* Content Area */}
                         <div className="flex-1 overflow-y-auto bg-slate-50">
                             {activeTab === 'details' && (
-                                <div className="p-8 space-y-6">
-                                    <h2 className="text-2xl font-black text-slate-900">{selectedApp.Vacancy?.title}</h2>
-                                    <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                                        <p className="text-[10px] text-slate-400 uppercase font-black mb-3">Описание вакансии</p>
-                                        <div className="text-slate-600 leading-relaxed">{selectedApp.Vacancy?.description}</div>
+                                <div className="p-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                    <div className="space-y-4">
+                                        <h2 className="text-3xl font-black text-slate-900 leading-tight">
+                                            {selectedApp.Vacancy?.title}
+                                        </h2>
+                                        <div className="flex flex-wrap gap-3">
+                                            <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium">
+                                                <MapPin size={16} className="text-blue-500" />
+                                                {selectedApp.Vacancy?.city || 'Удаленно'}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-sm font-bold">
+                                                <DollarSign size={16} className="text-emerald-600" />
+                                                {selectedApp.Vacancy?.salary || 'З/П по результатам'}
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    <div className="flex items-center gap-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                                        <div className="p-2.5 bg-white rounded-xl shadow-sm text-blue-600">
+                                            <UserCircle size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-1">
+                                                <span className="font-bold text-slate-900">
+                                                    {selectedApp.Vacancy?.RecruiterProfile?.full_name || 'Рекрутер HireVich'}
+                                                </span>
+                                                <ShieldCheck size={14} className="text-blue-500" />
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Ответственный за найм</p>
+                                        </div>
+                                    </div>
+
+                                    <section className="space-y-3">
+                                        <div className="flex items-center gap-2 text-slate-800">
+                                            <AlignLeft size={18} className="text-blue-600" />
+                                            <h3 className="font-bold">Описание вакансии</h3>
+                                        </div>
+                                        <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                                            <div className="text-slate-600 leading-relaxed whitespace-pre-line text-sm">
+                                                {selectedApp.Vacancy?.description || "Детальное описание временно недоступно."}
+                                            </div>
+                                        </div>
+                                    </section>
                                 </div>
                             )}
 
                             {activeTab === 'checklist' && (
                                 <div className="p-8 space-y-4">
                                     <h2 className="text-xl font-bold text-slate-800 mb-6">Этапы подготовки</h2>
-
                                     {loadingChecklist ? (
                                         <div className="py-10 text-center text-slate-400">Загрузка этапов...</div>
                                     ) : checklist.length > 0 ? (
@@ -198,6 +230,7 @@ const MyApplications = () => {
                                                     <div>
                                                         <p className={`font-bold ${item.is_completed ? 'text-emerald-900' : 'text-slate-700'}`}>{item.title}</p>
                                                         <p className="text-sm text-slate-500">{item.description}</p>
+                                                        {item.comment && <p className="mt-2 text-xs italic text-slate-400">Комментарий: {item.comment}</p>}
                                                     </div>
                                                 </div>
                                             ))}
@@ -218,7 +251,7 @@ const MyApplications = () => {
                                         <div className="flex flex-col items-center justify-center h-full text-center p-10">
                                             <Timer size={48} className="text-amber-500 mb-4" />
                                             <h3 className="text-lg font-bold text-slate-800">Чат недоступен</h3>
-                                            <p className="text-slate-500">Дождитесь одобрения вашей кандидатуры.</p>
+                                            <p className="text-slate-500">Дождитесь окончательного одобрения вашей кандидатуры.</p>
                                         </div>
                                     )}
                                 </div>

@@ -64,10 +64,26 @@ const getAllVacancies = async (req, res) => {
 
 const getVacancyById = async (req, res) => {
     try {
-        const vacancy = await Vacancy.findByPk(req.params.id);
+        const vacancy = await Vacancy.findByPk(req.params.id, {
+            include: [
+                {
+                    model: CheckListTemplate,
+                    // Сортировка этапов внутри include
+                    separate: true,
+                    order: [['order_index', 'ASC']]
+                },
+                {
+                    model: Profile,
+                    as: 'RecruiterProfile',
+                    attributes: ['full_name']
+                }
+            ]
+        });
+
         if (!vacancy) return res.status(404).json({ message: 'Вакансия не найдена' });
         res.json(vacancy);
     } catch (error) {
+        console.error("Ошибка при получении вакансии:", error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
 };
@@ -215,4 +231,38 @@ const getVacancyCandidates = async (req, res) => {
     }
 };
 
-module.exports = { getVacancyById, applyToVacancy, getAllVacancies, createVacancyWithChecklist, getMyVacancies, getVacancyByApplication, getVacancyCandidates };
+const updateVacancy = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, description, city, salary } = req.body;
+        const userId = req.user.id;
+
+        // Находим вакансию, принадлежащую текущему рекрутеру
+        const vacancy = await Vacancy.findOne({
+            where: { VacancyId: id, recruiter_id: userId }
+        });
+
+        if (!vacancy) {
+            return res.status(404).json({ message: 'Вакансия не найдена или доступ запрещен' });
+        }
+
+        // Обновляем только основные данные
+        await vacancy.update({
+            title,
+            description,
+            city,
+            salary
+        });
+
+        res.json({ message: 'Данные вакансии обновлены', vacancy });
+    } catch (error) {
+        console.error("Ошибка обновления вакансии:", error);
+        res.status(500).json({ message: 'Ошибка сервера при обновлении' });
+    }
+};
+
+module.exports = {
+    getVacancyById, applyToVacancy, getAllVacancies,
+    createVacancyWithChecklist, getMyVacancies, getVacancyByApplication,
+    getVacancyCandidates, updateVacancy
+};
