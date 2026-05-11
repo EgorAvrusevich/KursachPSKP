@@ -11,6 +11,8 @@ const interviewRoutes = require('./routes/interview.routes');
 const vacancyRoutes = require('./routes/vacancy.routes');
 const applicationRoutes = require('./routes/application.routes')
 const templateRoutes = require('./routes/template.routes');
+const approvedRoutes = require('./routes/approved.routes')
+const savedVacancyRoutes = require('./routes/savedVacancy.routes');
 const startChatWorker = require('./workers/chatWorker');
 const startMessageWorker = require('./workers/MessageWorker');
 
@@ -33,6 +35,8 @@ app.use('/interviews', interviewRoutes);
 app.use('/vacancies', vacancyRoutes);
 app.use('/templates', templateRoutes);
 app.use('/applications', applicationRoutes)
+app.use('/approved', approvedRoutes)
+app.use('/saved-vacancies', savedVacancyRoutes)
 
 // Логика RabbitMQ
 let channel;

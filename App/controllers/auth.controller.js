@@ -24,8 +24,8 @@ const register = async (req, res) => {
 
         res.status(201).json({ message: 'Пользователь успешно создан', userId: newUser.UserId });
     } catch (error) {
-        console.error('ОШИБКА В КОНТРОЛЛЕРЕ:', error);
-        res.status(500).json({ message: 'Ошибка при регистрации', error: error.message });
+        console.error("Ошибка при регистрации:", error);
+        res.status(500).json({ message: 'Ошибка при регистрации' });
     }
 };
 
@@ -52,5 +52,7 @@ const login = async (req, res) => {
         res.status(500).json({ message: 'Ошибка при входе', error: error.message });
     }
 };
+
+
 
 module.exports = { register, login };

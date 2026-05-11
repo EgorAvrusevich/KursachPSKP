@@ -110,38 +110,6 @@ const getInterviewData = async (req, res) => {
     }
 };
 
-const updateProgress = async (req, res) => {
-    // ВАЖНО: деструктурируем из params именно тот ключ, который указан в роутах
-    // Если в роутере написано /progress/:id, то здесь должно быть { id }
-    const { progressId } = req.params;
-    const { is_completed, comment } = req.body;
-
-    // Защита от undefined и пустых строк
-    if (!progressId || progressId === 'undefined') {
-        return res.status(400).json({ message: "Progress ID is missing or invalid" });
-    }
-
-    try {
-        const [updated] = await CandidateProgress.update(
-            {
-                is_completed,
-                comment,
-                updated_at: new Date()
-            },
-            { where: { ProgressId: progressId } } // Убедись, что в БД колонка именно ProgressId
-        );
-
-        if (updated) {
-            res.json({ message: "Прогресс обновлен" });
-        } else {
-            res.status(404).json({ message: "Запись не найдена" });
-        }
-    } catch (error) {
-        console.error("Error updating progress:", error);
-        res.status(500).json({ message: "Ошибка сервера" });
-    }
-};
-
 const updateSettings = async (req, res) => {
     try {
         const { id } = req.params;
@@ -236,7 +204,7 @@ const deleteInterview = async (req, res) => {
 
         if (!interview) return res.status(404).json({ message: 'Интервью не найдено' });
 
-        const rawDate = new Date(item.scheduled_at);
+        const rawDate = new Date(interview.scheduled_at);
 
         // 2. Исправляем смещение: вычитаем разницу часового пояса (в минутах)
         // Это уберет лишние 3 часа, которые набрасывает браузер
@@ -270,4 +238,4 @@ const deleteInterview = async (req, res) => {
     }
 };
 
-module.exports = { updateProgress, getInterviewData, scheduleInterview, updateSettings, getMyInterviews, deleteInterview };
+module.exports = { getInterviewData, scheduleInterview, updateSettings, getMyInterviews, deleteInterview };

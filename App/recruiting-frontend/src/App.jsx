@@ -14,6 +14,8 @@ import CreateTemplate from './pages/CreateTemplate';
 import MyTemplates from './pages/MyTemplates';
 import ManageVacancy from './pages/ManageVacancy';
 import EditVacancy from './pages/EditVacancy';
+import ApprovedCandidates from './pages/ApprovedCandidates';
+import SavedVacancies from './pages/SavedVacancies';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -39,6 +41,14 @@ function AppContent() {
             element={
               <PrivateRoute role="Candidate">
                 <MyApplications />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/favorites"
+            element={
+              <PrivateRoute role="Candidate">
+                <SavedVacancies />
               </PrivateRoute>
             }
           />
@@ -90,6 +100,14 @@ function AppContent() {
             element={
               <PrivateRoute role="Recruiter">
                 <EditVacancy />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/approved/"
+            element={
+              <PrivateRoute role="Recruiter">
+                <ApprovedCandidates />
               </PrivateRoute>
             }
           />

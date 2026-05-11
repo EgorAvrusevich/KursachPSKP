@@ -1,15 +1,18 @@
 const { GlobalTemplate, GlobalTemplateItem, sequelize } = require('../models');
 
-// 1. Получить конкретный шаблон по ID (Новое)
+// Вспомогательная функция для получения recruiterId из токена
+const getRecruiterId = (req) => req.user.id;
+
+// 1. Получить конкретный шаблон по ID
 const getGlobalTemplateById = async (req, res) => {
     try {
         const { id } = req.params;
-        const recruiter_id = req.user.id;
+        const recruiterId = getRecruiterId(req);
 
         const template = await GlobalTemplate.findOne({
-            where: { 
-                GlobalTemplateId: id, // НЕ 'id', а имя из модели!
-                recruiter_id: recruiter_id 
+            where: {
+                GlobalTemplateId: id,
+                recruiter_id: recruiterId
             },
             include: [{ model: GlobalTemplateItem }]
         });
@@ -17,7 +20,7 @@ const getGlobalTemplateById = async (req, res) => {
         if (!template) return res.status(404).json({ message: "Шаблон не найден" });
         res.json(template);
     } catch (error) {
-        console.error(error);
+        console.error("Ошибка получения шаблона:", error);
         res.status(500).json({ message: "Ошибка сервера" });
     }
 };
@@ -27,21 +30,19 @@ const createGlobalTemplate = async (req, res) => {
     const t = await sequelize.transaction();
     try {
         const { name, description, items } = req.body;
-        const recruiter_id = req.user.id;
+        const recruiterId = getRecruiterId(req);
 
         const template = await GlobalTemplate.create({
             name,
             description,
-            recruiter_id
+            recruiter_id: recruiterId
         }, { transaction: t });
 
         if (items && items.length > 0) {
-            const templateId = template.id || template.global_template_id || template.GlobalTemplateId;
-
             const itemObjects = items.map((content, index) => ({
                 content,
                 order_index: index,
-                global_template_id: templateId 
+                global_template_id: template.GlobalTemplateId
             }));
 
             await GlobalTemplateItem.bulkCreate(itemObjects, { transaction: t });
@@ -51,7 +52,7 @@ const createGlobalTemplate = async (req, res) => {
         res.status(201).json(template);
     } catch (error) {
         if (t) await t.rollback();
-        console.error("ОШИБКА СОХРАНЕНИЯ:", error);
+        console.error("Ошибка при создании шаблона:", error);
         res.status(500).json({ message: "Ошибка при создании шаблона" });
     }
 };
@@ -59,16 +60,15 @@ const createGlobalTemplate = async (req, res) => {
 // 3. Получить все шаблоны рекрутера
 const getMyGlobalTemplates = async (req, res) => {
     try {
+        const recruiterId = getRecruiterId(req);
         const templates = await GlobalTemplate.findAll({
-            where: { recruiter_id: req.user.id },
-            include: [{ 
-                model: GlobalTemplateItem,
-                // Проверь, чтобы имя модели совпадало с тем, что в define
-            }]
+            where: { recruiter_id: recruiterId },
+            include: [{ model: GlobalTemplateItem }]
         });
         res.json(templates);
     } catch (error) {
-        res.status(500).json({ message: "Ошибка" });
+        console.error("Ошибка получения шаблонов:", error);
+        res.status(500).json({ message: "Ошибка сервера" });
     }
 };
 
@@ -78,15 +78,11 @@ const updateGlobalTemplate = async (req, res) => {
 
     try {
         const { id } = req.params;
-        const { name, items } = req.body; // Получаем 'name' вместо 'stage_name'
-        const recruiter_id = req.user.id;
+        const { name, items } = req.body;
+        const recruiterId = getRecruiterId(req);
 
-        // 1. Поиск по GlobalTemplateId
         const template = await GlobalTemplate.findOne({
-            where: {
-                GlobalTemplateId: id, // Используем точное имя ПК из БД
-                recruiter_id: recruiter_id
-            },
+            where: { GlobalTemplateId: id, recruiter_id: recruiterId },
             transaction: t
         });
 
@@ -95,23 +91,22 @@ const updateGlobalTemplate = async (req, res) => {
             return res.status(404).json({ message: "Шаблон не найден" });
         }
 
-        // 2. Обновляем название (поле 'name' в модели GlobalTemplate)
+        // Обновляем название
         await template.update({ name }, { transaction: t });
 
-        // 3. Обновляем пункты (используем модель GlobalTemplateItem)
+        // Пересоздаём пункты (replace-подход: удаляем старые, создаём новые)
         if (items && Array.isArray(items)) {
-            // Удаляем старые пункты по global_template_id
             await GlobalTemplateItem.destroy({
-                where: { global_template_id: id },
+                where: { global_template_id: template.GlobalTemplateId },
                 transaction: t
             });
 
             const itemsToCreate = items
                 .filter(content => content.trim() !== '')
                 .map((content, index) => ({
-                    global_template_id: id, // Связь
-                    content: content,
-                    order_index: index // Добавляем индекс для сохранения порядка
+                    global_template_id: template.GlobalTemplateId,
+                    content,
+                    order_index: index
                 }));
 
             if (itemsToCreate.length > 0) {
@@ -130,19 +125,14 @@ const updateGlobalTemplate = async (req, res) => {
 };
 
 const deleteGlobalTemplate = async (req, res) => {
-    // Начинаем транзакцию, чтобы удаление было атомарным
     const t = await sequelize.transaction();
 
     try {
         const { id } = req.params;
-        const recruiter_id = req.user.id;
+        const recruiterId = getRecruiterId(req);
 
-        // 1. Проверяем существование шаблона и права доступа (принадлежит ли он рекрутеру)
         const template = await GlobalTemplate.findOne({
-            where: {
-                GlobalTemplateId: id,
-                recruiter_id: recruiter_id
-            },
+            where: { GlobalTemplateId: id, recruiter_id: recruiterId },
             transaction: t
         });
 
@@ -151,32 +141,27 @@ const deleteGlobalTemplate = async (req, res) => {
             return res.status(404).json({ message: "Шаблон не найден или у вас нет прав на его удаление" });
         }
 
-        // 2. Удаляем связанные пункты шаблона
-        // Хотя у вас в моделях прописано onDelete: 'CASCADE', явное удаление в транзакции надежнее для MSSQL
+        // Удаляем пункты и сам шаблон в транзакции
         await GlobalTemplateItem.destroy({
-            where: { global_template_id: id },
+            where: { global_template_id: template.GlobalTemplateId },
             transaction: t
         });
 
-        // 3. Удаляем сам шаблон
         await template.destroy({ transaction: t });
-
-        // Фиксируем изменения в БД
         await t.commit();
-        
+
         res.json({ message: "Шаблон и его пункты успешно удалены" });
 
     } catch (error) {
-        // В случае ошибки откатываем все изменения
         if (t) await t.rollback();
         console.error("Ошибка при удалении шаблона:", error);
         res.status(500).json({ message: "Ошибка сервера при удалении" });
     }
 };
 
-module.exports = { 
-    getMyGlobalTemplates, 
-    createGlobalTemplate, 
+module.exports = {
+    getMyGlobalTemplates,
+    createGlobalTemplate,
     getGlobalTemplateById,
     updateGlobalTemplate,
     deleteGlobalTemplate

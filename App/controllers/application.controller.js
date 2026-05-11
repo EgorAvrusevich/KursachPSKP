@@ -45,10 +45,10 @@ const getMyApplications = async (req, res) => {
 const createApplication = async (req, res) => {
     try {
         const { vacancyId } = req.body;
-        const userId = req.user.UserId;
+        const userId = req.user.id;
 
         const existingApp = await Application.findOne({
-            where: { candidate_id: userId, vacancy_id: vacancyId } // ИСПРАВЛЕНО
+            where: { candidate_id: userId, vacancy_id: vacancyId }
         });
 
         if (existingApp) {
@@ -56,8 +56,8 @@ const createApplication = async (req, res) => {
         }
 
         const application = await Application.create({
-            candidate_id: userId, // ИСПРАВЛЕНО
-            vacancy_id: vacancyId, // ИСПРАВЛЕНО
+            candidate_id: userId,
+            vacancy_id: vacancyId,
             status: 'На рассмотрении'
         });
 
@@ -164,8 +164,9 @@ const deleteApplication = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.id;
 
+        // Используем applicationId — это маршруты передают PK заявки
         const app = await Application.findOne({
-            where: { id: id, UserId: userId }
+            where: { id: id, candidate_id: userId }
         });
 
         if (!app) {

@@ -46,7 +46,6 @@ const getAllVacancies = async (req, res) => {
             whereCondition = {
                 [Op.or]: [
                     { title: { [Op.like]: `%${search}%` } },
-                    { company: { [Op.like]: `%${search}%` } },
                     { description: { [Op.like]: `%${search}%` } }
                 ]
             };

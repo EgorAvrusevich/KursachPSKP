@@ -7,10 +7,10 @@ const User = sequelize.define('User', {
     UserId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     email: { type: DataTypes.STRING(255), allowNull: false, unique: true },
     password_hash: { type: DataTypes.STRING(255), allowNull: false },
-    role: { 
-        type: DataTypes.STRING(50), 
+    role: {
+        type: DataTypes.STRING(50),
         allowNull: false,
-        validate: { isIn: [['Admin', 'Recruiter', 'Candidate']] } 
+        validate: { isIn: [['Admin', 'Recruiter', 'Candidate']] }
     }
 }, { tableName: 'Users' });
 
@@ -76,11 +76,23 @@ const GlobalTemplateItem = sequelize.define('GlobalTemplateItem', {
     global_template_id: { type: DataTypes.INTEGER, allowNull: false }
 }, { tableName: 'GlobalTemplateItems' });
 
+const ApprovedCandidate = sequelize.define('ApprovedCandidate', {
+    Id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    recruiter_id: { type: DataTypes.INTEGER, allowNull: false },
+    candidate_id: { type: DataTypes.INTEGER, allowNull: false },
+    added_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    notes: { type: DataTypes.TEXT, allowNull: true },// Заметки о том, почему кандидат одобрен}
+},
+    {
+        tableName: 'ApprovedCandidates',
+        timestamps: false
+    });
+
 const Chat = sequelize.define('Chat', {
     ChatId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true, field: 'chat_id' },
     application_id: { type: DataTypes.INTEGER, field: 'application_id' }
-}, { 
-    tableName: 'Chats', 
+}, {
+    tableName: 'Chats',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at'
@@ -93,7 +105,7 @@ const ChatMessage = sequelize.define('ChatMessage', {
     sender_id: { type: DataTypes.INTEGER, allowNull: false },
     chat_id: { type: DataTypes.INTEGER, allowNull: false },
     is_system: { type: DataTypes.BOOLEAN, defaultValue: false }
-}, { 
+}, {
     tableName: 'ChatMessages',
     timestamps: true,
     createdAt: 'createdAt',
@@ -121,7 +133,7 @@ Vacancy.hasMany(Application, { foreignKey: 'vacancy_id', onDelete: 'CASCADE' });
 Application.belongsTo(Vacancy, { foreignKey: 'vacancy_id' });
 
 // Пользователь - Заявка
-User.hasMany(Application, { foreignKey: 'candidate_id', onDelete: 'NO ACTION' }); 
+User.hasMany(Application, { foreignKey: 'candidate_id', onDelete: 'NO ACTION' });
 Application.belongsTo(User, { foreignKey: 'candidate_id', as: 'Candidate' });
 
 // Заявка - Чат
@@ -155,8 +167,38 @@ GlobalTemplateItem.belongsTo(GlobalTemplate, { foreignKey: 'global_template_id' 
 Application.hasMany(Interview, { foreignKey: 'application_id', onDelete: 'CASCADE' });
 Interview.belongsTo(Application, { foreignKey: 'application_id' });
 
+// Избранные вакансии
+const SavedVacancy = sequelize.define('SavedVacancy', {
+    SaveId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    user_id: { type: DataTypes.INTEGER, allowNull: false },
+    vacancy_id: { type: DataTypes.INTEGER, allowNull: false }
+}, {
+    tableName: 'SavedVacancies',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+});
+
+// Одобренные кандидаты (Связь многие-ко-многим между рекрутером и кандидатом)
+User.hasMany(ApprovedCandidate, { foreignKey: 'recruiter_id', as: 'ApprovedList', onDelete: 'CASCADE' });
+ApprovedCandidate.belongsTo(User, { foreignKey: 'recruiter_id', as: 'Recruiter' });
+
+User.hasMany(ApprovedCandidate, { foreignKey: 'candidate_id', as: 'InApprovedLists', onDelete: 'CASCADE' });
+ApprovedCandidate.belongsTo(User, { foreignKey: 'candidate_id', as: 'Candidate' });
+
+// Если нужно получать профиль кандидата напрямую через ApprovedCandidate
+ApprovedCandidate.belongsTo(Profile, { foreignKey: 'candidate_id', targetKey: 'UserId', as: 'CandidateProfile' });
+
+// Ассоциации для SavedVacancy
+User.hasMany(SavedVacancy, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+SavedVacancy.belongsTo(User, { foreignKey: 'user_id' });
+
+Vacancy.hasMany(SavedVacancy, { foreignKey: 'vacancy_id', onDelete: 'CASCADE' });
+SavedVacancy.belongsTo(Vacancy, { foreignKey: 'vacancy_id' });
+
 module.exports = {
-    sequelize, User, Profile, Vacancy, CheckListTemplate, 
-    Application, CandidateProgress, ChatMessage, Chat, 
-    Interview, GlobalTemplate, GlobalTemplateItem
+    sequelize, User, Profile, Vacancy, CheckListTemplate,
+    Application, CandidateProgress, ChatMessage, Chat,
+    Interview, GlobalTemplate, GlobalTemplateItem,
+    ApprovedCandidate, SavedVacancy
 };

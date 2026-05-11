@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const interviewController = require('../controllers/interview.controller'); // Импортируем контроллер
+const interviewController = require('../controllers/interview.controller');
+const progressController = require('../controllers/progress.controller');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 // 1. Получить данные интервью и чек-лист (GET /api/interviews/:id)
@@ -12,11 +13,9 @@ router.delete('/:id', authenticateToken, interviewController.deleteInterview);
 router.post('/schedule', authenticateToken, authorizeRole(['Recruiter']), interviewController.scheduleInterview);
 
 // 3. Обновить настройки видимости (PATCH /api/interviews/:id/settings)
-// Исправляет 404 при клике на "глаз"
 router.patch('/:id/settings', authenticateToken, authorizeRole(['Recruiter']), interviewController.updateSettings);
 
 // 4. Обновить прогресс этапа (PATCH /api/interviews/progress/:progressId)
-// Исправляет 404/500 при сохранении комментариев или галочек
-router.patch('/progress/:progressId', authenticateToken, interviewController.updateProgress);
+router.patch('/progress/:progressId', authenticateToken, progressController.updateProgressDetail);
 
 module.exports = router;

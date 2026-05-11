@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//LESSONS/Курсач ПСКП/App/recruiting-frontend/src/**)",
+      "Read(//d/LESSONS/Курсач ПСКП/App/recruiting-frontend/src/**)"
+    ],
+    "additionalDirectories": [
+      "\\LESSONS\\Курсач ПСКП\\App\\routes",
+      "d:\\LESSONS\\Курсач ПСКП\\App\\routes"
+    ]
+  }
+}

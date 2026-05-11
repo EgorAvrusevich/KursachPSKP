@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { MapPin, DollarSign, Calendar, Briefcase, AlignLeft, UserCircle, ShieldCheck } from 'lucide-react';
+import { MapPin, DollarSign, Calendar, Briefcase, AlignLeft, UserCircle, ShieldCheck, Heart, HeartOff } from 'lucide-react';
 import api from '../api';
 
 const VacancyDetail = () => {
@@ -10,6 +10,7 @@ const VacancyDetail = () => {
   const [job, setJob] = useState(null);
   const [applied, setApplied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
 
   const userRole = localStorage.getItem('role');
   const isRecruiter = userRole === 'Recruiter';
@@ -42,6 +43,25 @@ const VacancyDetail = () => {
     }
   };
 
+  const handleSave = async () => {
+    try {
+      if (saved) {
+        // Удаляем из избранного — ищем SaveId
+        const res = await api.get('/saved-vacancies');
+        const record = res.data.find(s => s.vacancy_id === Number(id));
+        if (record) {
+          await api.delete(`/saved-vacancies/${record.SaveId}`);
+        }
+        setSaved(false);
+      } else {
+        await api.post(`/saved-vacancies/${id}`, { vacancyId: id });
+        setSaved(true);
+      }
+    } catch (err) {
+      console.error("Ошибка при сохранении:", err);
+    }
+  };
+
   if (loading) return <div className="text-center py-20 text-gray-500 font-bold italic">Загрузка вакансии...</div>;
   if (!job) return <div className="text-center py-20 text-red-500 font-bold">Вакансия не найдена.</div>;
 
@@ -54,9 +74,24 @@ const VacancyDetail = () => {
         <div className="p-8">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8 pb-8 border-b border-gray-100">
             <div className="space-y-4">
-              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
-                {job.title}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                  {job.title}
+                </h1>
+                {isAuthenticated && !isRecruiter && (
+                  <button
+                    onClick={handleSave}
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+                    title={saved ? "Убрать из избранного" : "Сохранить в избранное"}
+                  >
+                    {saved ? (
+                      <HeartOff size={20} className="text-rose-500" />
+                    ) : (
+                      <Heart size={20} className="text-slate-400 hover:text-rose-500" />
+                    )}
+                  </button>
+                )}
+              </div>
 
               <div className="flex flex-wrap gap-y-3 gap-x-6">
                 {/* Город */}

@@ -42,7 +42,7 @@ const Navbar = () => {
             {user?.role === 'Recruiter' && (
               <>
                 <Link to="/vacancies/my-vacancies" className="hover:text-blue-600">Мои вакансии</Link>
-                <Link to="/candidates-base" className="hover:text-blue-600">База соискателей</Link>
+                <Link to="/approved/" className="hover:text-blue-600">База соискателей</Link>
                 <Link to="/create-vacancy" className="flex items-center gap-1 text-orange-500 font-bold hover:text-orange-600">
                   <PlusCircle size={18}/> Создать
                 </Link>

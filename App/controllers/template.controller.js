@@ -1,6 +1,7 @@
 // controllers/template.controller.js
-const { CheckListTemplate } = require('../models');
+const { CheckListTemplate, Vacancy } = require('../models');
 
+// 1. Получить все уникальные названия этапов, которые этот рекрутер использовал ранее
 const GetMyTemplates = async (req, res) => {
     try {
         const templates = await CheckListTemplate.findAll({
@@ -13,93 +14,56 @@ const GetMyTemplates = async (req, res) => {
         });
         res.json(templates);
     } catch (error) {
-        res.status(500).send();
+        console.error("Ошибка получения шаблонов:", error);
+        res.status(500).json({ message: "Ошибка сервера" });
     }
-}
+};
 
+// 2. Создать этап(ы) чек-листа
 const createTemplate = async (req, res) => {
     try {
         const { stage_name, items } = req.body;
-        const recruiter_id = req.user.id; // Берем из токена
 
-        // 1. Создаем сам этап
+        // Создаём основной этап (vacancy_id пока не привязан)
         const template = await CheckListTemplate.create({
             stage_name,
-            recruiter_id,
-            order_index: count + 1
+            order_index: 0
         });
 
-        // 2. Создаем пункты для этого этапа
+        // Создаём дополнительные этапы из items
         if (items && items.length > 0) {
-            const itemObjects = items.map(text => ({
-                template_id: template.id,
-                content: text
+            const itemObjects = items.map((item, index) => ({
+                stage_name: item,
+                order_index: index + 1
             }));
-            await CheckListItem.bulkCreate(itemObjects);
+            await CheckListTemplate.bulkCreate(itemObjects);
         }
 
         res.status(201).json(template);
     } catch (error) {
-        console.error(error);
+        console.error("Ошибка создания шаблона:", error);
         res.status(500).json({ message: "Ошибка сервера" });
     }
 };
 
+// 3. Обновить этап чек-листа (по TemplateId)
 const updateTemplate = async (req, res) => {
-    const t = await sequelize.transaction();
-
     try {
         const { id } = req.params;
-        const { name, items } = req.body; // Получаем 'name' вместо 'stage_name'
-        const recruiter_id = req.user.id;
+        const { stage_name } = req.body;
 
-        // 1. Поиск по GlobalTemplateId
-        const template = await GlobalTemplate.findOne({
-            where: {
-                GlobalTemplateId: id, // Используем точное имя ПК из БД
-                recruiter_id: recruiter_id
-            },
-            transaction: t
-        });
+        const template = await CheckListTemplate.findByPk(id);
 
         if (!template) {
-            await t.rollback();
             return res.status(404).json({ message: "Шаблон не найден" });
         }
 
-        // 2. Обновляем название (поле 'name' в модели GlobalTemplate)
-        await template.update({ name }, { transaction: t });
-
-        // 3. Обновляем пункты (используем модель GlobalTemplateItem)
-        if (items && Array.isArray(items)) {
-            // Удаляем старые пункты по global_template_id
-            await GlobalTemplateItem.destroy({
-                where: { global_template_id: id },
-                transaction: t
-            });
-
-            const itemsToCreate = items
-                .filter(content => content.trim() !== '')
-                .map((content, index) => ({
-                    global_template_id: id, // Связь
-                    content: content,
-                    order_index: index // Добавляем индекс для сохранения порядка
-                }));
-
-            if (itemsToCreate.length > 0) {
-                await GlobalTemplateItem.bulkCreate(itemsToCreate, { transaction: t });
-            }
-        }
-
-        await t.commit();
-        res.json({ message: "Шаблон успешно обновлен", templateId: id });
-
+        await template.update({ stage_name });
+        res.json({ message: "Шаблон обновлён", template });
     } catch (error) {
-        if (t) await t.rollback();
         console.error("Ошибка при обновлении шаблона:", error);
         res.status(500).json({ message: "Ошибка сервера" });
     }
 };
-
 
 module.exports = { GetMyTemplates, createTemplate, updateTemplate };
