@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api';
 import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { Heart, HeartOff, MapPin, DollarSign, Briefcase, AlertCircle } from 'lucide-react';
+import { HeartOff, MapPin, DollarSign, Briefcase, AlertCircle, ArrowRight } from 'lucide-react';
 
 const SavedVacancies = () => {
     const [saved, setSaved] = useState([]);
@@ -56,34 +57,57 @@ const SavedVacancies = () => {
                     if (!vacancy) return null;
 
                     return (
-                        <Card key={item.SaveId} className="flex justify-between items-center p-5 hover:shadow-md transition-shadow border-l-4 border-l-rose-500">
-                            <div className="space-y-1 flex-1">
-                                <h3 className="font-bold text-xl text-slate-800">{vacancy.title}</h3>
-                                <div className="flex gap-4 items-center mt-2">
-                                    <span className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                                        <MapPin size={14} className="text-gray-400" />
-                                        {vacancy.city || 'Удаленно'}
-                                    </span>
-                                    {vacancy.salary && (
-                                        <span className="text-sm font-medium text-emerald-600 flex items-center gap-1">
-                                            <DollarSign size={14} />
-                                            {vacancy.salary}
-                                        </span>
+                        <Card key={item.SaveId} className="p-5 hover:shadow-md transition-shadow border-l-4 border-l-rose-500 group">
+                            <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                                <div className="flex-1 cursor-pointer" onClick={() => window.location.href = `/vacancy/${vacancy.VacancyId}`}>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <h3 className="font-bold text-xl text-slate-800 group-hover:text-blue-600 transition-colors">
+                                            {vacancy.title}
+                                        </h3>
+                                        <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-400 transition-colors" />
+                                    </div>
+                                    {vacancy.description && (
+                                        <p className="text-sm text-slate-500 mb-3 line-clamp-2">
+                                            {vacancy.description.length > 150
+                                                ? vacancy.description.substring(0, 150) + '...'
+                                                : vacancy.description}
+                                        </p>
                                     )}
-                                    <span className="text-sm text-gray-400 flex items-center gap-1">
-                                        <Briefcase size={14} />
-                                        {vacancy.RecruiterProfile?.full_name || vacancy.Recruiter?.full_name || 'Рекрутер'}
-                                    </span>
+                                    <div className="flex flex-wrap gap-3 items-center">
+                                        <span className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                                            <MapPin size={14} className="text-gray-400" />
+                                            {vacancy.city || 'Удаленно'}
+                                        </span>
+                                        {vacancy.salary && (
+                                            <span className="text-sm font-medium text-emerald-600 flex items-center gap-1">
+                                                <DollarSign size={14} />
+                                                {vacancy.salary}
+                                            </span>
+                                        )}
+                                        {vacancy.RecruiterProfile?.full_name && (
+                                            <span className="text-sm text-gray-400 flex items-center gap-1">
+                                                <Briefcase size={14} />
+                                                {vacancy.RecruiterProfile.full_name}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                                <Button
-                                    variant="outline"
-                                    className="text-rose-500 border-rose-200 hover:bg-rose-50 flex items-center gap-1"
-                                    onClick={() => handleUnsave(item.SaveId)}
-                                >
-                                    <HeartOff size={16} /> Убрать
-                                </Button>
+                                <div className="flex gap-2 shrink-0">
+                                    <Button
+                                        variant="outline"
+                                        className="text-rose-500 border-rose-200 hover:bg-rose-50 flex items-center gap-1"
+                                        onClick={() => handleUnsave(item.SaveId)}
+                                    >
+                                        <HeartOff size={16} /> Убрать
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                        onClick={() => window.location.href = `/vacancy/${vacancy.VacancyId}`}
+                                    >
+                                        Подробнее
+                                    </Button>
+                                </div>
                             </div>
                         </Card>
                     );

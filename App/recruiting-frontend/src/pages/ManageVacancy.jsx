@@ -6,9 +6,9 @@ import Button from '../components/ui/Button';
 import ChatWindow from '../components/ChatWindow';
 import {
     User, Mail, Phone, CheckCircle, XCircle,
-    Clock, Loader2, ArrowLeft, X, MessageSquare, Calendar, Video, ListChecks, CheckCircle2
+    Clock, Loader2, ArrowLeft, X, MessageSquare, Calendar, Video, ListChecks, CheckCircle2,
+    UserPlus, ShieldCheck
 } from 'lucide-react';
-
 
 
 const parseJwt = (token) => {
@@ -25,6 +25,10 @@ const ManageVacancy = () => {
     const [interviewDate, setInterviewDate] = useState('');
     const [scheduling, setScheduling] = useState(false);
     const [interviewMode, setInterviewMode] = useState('now');
+    const [approving, setApproving] = useState(false);
+    const [approveNote, setApproveNote] = useState(''); // Для текста заметки
+    const [isApproveModalOpen, setIsApproveModalOpen] = useState(false); // Состояние для мини-модалки заметки
+    const [candidateToApprove, setCandidateToApprove] = useState(null); // Кого именно одобряем
 
     // Состояния для чек-листа
     const [checklist, setChecklist] = useState([]);
@@ -79,6 +83,47 @@ const ManageVacancy = () => {
         } catch (err) {
             alert("Не удалось обновить статус");
         }
+    };
+
+    // Добавление кандидата в базу одобренных
+    const handleApproveCandidate = async () => {
+        if (!candidateToApprove) return;
+
+        const candidateId = candidateToApprove.Candidate?.UserId;
+        const applicationId = candidateToApprove.ApplicationId;
+
+        try {
+            setApproving(true);
+            // 1. Добавляем в таблицу одобренных с заметкой
+            await api.post('/approved/add', {
+                candidateId,
+                notes: approveNote
+            });
+
+            // 2. Сразу меняем статус заявки на "Принято", чтобы синхронизировать логику
+            await api.patch(`/applications/${applicationId}/status`, { status: 'Принято' });
+
+            alert('Кандидат одобрен и добавлен в вашу базу!');
+
+            // Обновляем локальное состояние списка
+            setCandidates(prev => prev.map(c =>
+                c.ApplicationId === applicationId ? { ...c, status: 'Принято' } : c
+            ));
+
+            setIsApproveModalOpen(false);
+            setApproveNote('');
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Ошибка при одобрении';
+            alert(msg);
+        } finally {
+            setApproving(false);
+        }
+    };
+
+    const openApproveDialog = (e, app) => {
+        e.stopPropagation();
+        setCandidateToApprove(app);
+        setIsApproveModalOpen(true);
     };
 
     // Функция переключения задачи чек-листа
@@ -157,53 +202,99 @@ const ManageVacancy = () => {
             </div>
 
             <div className="grid gap-4">
-                {candidates.length > 0 ? (
-                    candidates.map(app => (
-                        <Card key={app.ApplicationId} className="p-5 border-l-4 border-l-blue-600 hover:shadow-md transition-all">
-                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="flex items-center gap-4 flex-1 cursor-pointer group" onClick={() => { setSelectedCandidate(app); setActiveTab('profile'); }}>
-                                    <div className="shrink-0 w-12 h-12 bg-blue-50 group-hover:bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-lg border border-blue-100 transition-colors">
-                                        {app.Candidate?.Profile?.full_name?.charAt(0) || 'К'}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h3 className="font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                                            {app.Candidate?.Profile?.full_name || 'Анонимный кандидат'}
-                                        </h3>
-                                        <div className="flex flex-wrap gap-x-4 text-xs text-slate-500 mt-1">
-                                            <span className="flex items-center gap-1.5"><Mail size={13} /> {app.Candidate?.email}</span>
-                                            <span className="flex items-center gap-1.5"><Phone size={13} /> {app.Candidate?.Profile?.phone || '—'}</span>
-                                        </div>
-                                    </div>
+                {candidates.map(app => (
+                    <Card key={app.ApplicationId} className="p-5 border-l-4 border-l-blue-600 hover:shadow-md transition-all">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                            {/* Секция с инфо кандидата */}
+                            <div className="flex items-center gap-4 flex-1 cursor-pointer group" onClick={() => { setSelectedCandidate(app); setActiveTab('profile'); }}>
+                                <div className="shrink-0 w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-bold">
+                                    {app.Candidate?.Profile?.full_name?.charAt(0) || 'К'}
                                 </div>
-
-                                <div className="flex items-center gap-2">
-                                    {/* Новая кнопка: Рассмотрение */}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={app.status === 'Рассмотрение'}
-                                        className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                                        onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Рассмотрение'); }}
-                                    >
-                                        <Clock size={16} className="mr-1" /> Рассмотреть
-                                    </Button>
-
-                                    <Button variant="outline" size="sm" disabled={app.status === 'Принято'} className="text-emerald-600 border-emerald-200" onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Принято'); }}>
-                                        <CheckCircle size={16} className="mr-1" /> Принять
-                                    </Button>
-
-                                    <Button variant="outline" size="sm" disabled={app.status === 'Отказ'} className="text-red-600 border-red-200" onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Отказ'); }}>
-                                        <XCircle size={16} className="mr-1" /> Отказать
-                                    </Button>
+                                <div className="min-w-0">
+                                    <h3 className="font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                                        {app.Candidate?.Profile?.full_name || 'Анонимный кандидат'}
+                                    </h3>
+                                    <div className="flex gap-x-4 text-xs text-slate-500">
+                                        <span>{app.status}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </Card>
-                    ))
-                ) : (
-                    <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">На эту вакансию пока никто не откликнулся</div>
-                )}
+
+                            {/* Кнопки действий */}
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-amber-600 border-amber-200"
+                                    onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Рассмотрение'); }}
+                                    disabled={app.status === 'Рассмотрение'}
+                                >
+                                    <Clock size={16} className="mr-1" /> Рассмотреть
+                                </Button>
+
+                                {/* ЗАМЕНЕННАЯ КНОПКА ПРИНЯТЬ/В БАЗУ */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-emerald-600 border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100"
+                                    onClick={(e) => openApproveDialog(e, app)}
+                                    disabled={app.status === 'Принято'}
+                                >
+                                    <ShieldCheck size={16} className="mr-1" /> Одобрить и в базу
+                                </Button>
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 border-red-200"
+                                    onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Отказ'); }}
+                                    disabled={app.status === 'Отказ'}
+                                >
+                                    <XCircle size={16} className="mr-1" /> Отказать
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                ))}
             </div>
 
+            {/* МОДАЛКА ДЛЯ ЗАМЕТКИ ПРИ ДОБАВЛЕНИИ В БАЗУ */}
+            {isApproveModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <Card className="max-w-md w-full p-6 space-y-4 shadow-2xl">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-slate-800">Одобрение кандидата</h2>
+                            <button onClick={() => setIsApproveModalOpen(false)}><X size={20} /></button>
+                        </div>
+
+                        <p className="text-sm text-slate-500">
+                            Кандидат <b>{candidateToApprove?.Candidate?.Profile?.full_name}</b> будет добавлен в ваш список одобренных. Вы сможете найти его в общем разделе "База кандидатов".
+                        </p>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase">Ваша заметка (почему одобрен?)</label>
+                            <textarea
+                                className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:border-blue-500 h-24 text-sm"
+                                placeholder="Например: Отличные знания SQL, хорошо показал себя на тех. интервью..."
+                                value={approveNote}
+                                onChange={(e) => setApproveNote(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button variant="outline" className="flex-1" onClick={() => setIsApproveModalOpen(false)}>Отмена</Button>
+                            <Button
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={handleApproveCandidate}
+                                disabled={approving}
+                            >
+                                {approving ? <Loader2 className="animate-spin" /> : 'Подтвердить'}
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+            
             {selectedCandidate && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <Card className="max-w-2xl w-full max-h-[90vh] flex flex-col p-0 shadow-2xl border-none overflow-hidden animate-in zoom-in duration-200">
@@ -240,10 +331,24 @@ const ManageVacancy = () => {
                                         <div className="w-20 h-20 bg-blue-600 text-white rounded-3xl flex items-center justify-center text-3xl font-bold">
                                             {selectedCandidate.Candidate?.Profile?.full_name?.charAt(0)}
                                         </div>
-                                        <div>
+                                        <div className="flex-1">
                                             <h1 className="text-2xl font-black text-slate-900">{selectedCandidate.Candidate?.Profile?.full_name}</h1>
                                             <p className="text-blue-600 font-semibold">Статус: {selectedCandidate.status}</p>
                                         </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-violet-600 border-violet-200 hover:bg-violet-50"
+                                            onClick={handleApproveCandidate}
+                                            disabled={approving}
+                                        >
+                                            {approving ? (
+                                                <Loader2 size={16} className="animate-spin" />
+                                            ) : (
+                                                <ShieldCheck size={16} />
+                                            )}
+                                            {approving ? 'Добавление...' : 'В базу кандидатов'}
+                                        </Button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -294,13 +399,12 @@ const ManageVacancy = () => {
                                                         </div>
                                                     </div>
 
-                                                    {/* Блок комментариев */}
                                                     <div className="mt-3 pt-3 border-t border-slate-50">
                                                         {editingComment.itemId === item.id ? (
                                                             <div className="space-y-2">
                                                                 <textarea
                                                                     className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-300 transition-all"
-                                                                    placeholder="Ваш комментарий по кандидату..."
+                                                                    placeholder="Ваш комментарий для кандидата..."
                                                                     value={editingComment.text}
                                                                     onChange={(e) => setEditingComment({ ...editingComment, text: e.target.value })}
                                                                 />

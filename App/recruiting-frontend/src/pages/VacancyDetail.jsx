@@ -11,10 +11,31 @@ const VacancyDetail = () => {
   const [applied, setApplied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [checkingSaved, setCheckingSaved] = useState(true);
 
   const userRole = localStorage.getItem('role');
   const isRecruiter = userRole === 'Recruiter';
   const isAuthenticated = !!localStorage.getItem('token');
+
+  // Проверяем, сохранена ли вакансия в избранном
+  useEffect(() => {
+    const checkSaved = async () => {
+      if (!isAuthenticated) {
+        setCheckingSaved(false);
+        return;
+      }
+      try {
+        const res = await api.get('/saved-vacancies');
+        const isSaved = res.data.some(s => s.vacancy_id === Number(id));
+        setSaved(isSaved);
+      } catch (err) {
+        console.error("Ошибка проверки избранного:", err);
+      } finally {
+        setCheckingSaved(false);
+      }
+    };
+    checkSaved();
+  }, [id, isAuthenticated]);
 
   useEffect(() => {
     const fetchVacancy = async () => {
@@ -46,7 +67,6 @@ const VacancyDetail = () => {
   const handleSave = async () => {
     try {
       if (saved) {
-        // Удаляем из избранного — ищем SaveId
         const res = await api.get('/saved-vacancies');
         const record = res.data.find(s => s.vacancy_id === Number(id));
         if (record) {
@@ -54,7 +74,7 @@ const VacancyDetail = () => {
         }
         setSaved(false);
       } else {
-        await api.post(`/saved-vacancies/${id}`, { vacancyId: id });
+        await api.post(`/saved-vacancies/${id}`);
         setSaved(true);
       }
     } catch (err) {
@@ -62,13 +82,12 @@ const VacancyDetail = () => {
     }
   };
 
-  if (loading) return <div className="text-center py-20 text-gray-500 font-bold italic">Загрузка вакансии...</div>;
+  if (loading || checkingSaved) return <div className="text-center py-20 text-gray-500 font-bold italic">Загрузка вакансии...</div>;
   if (!job) return <div className="text-center py-20 text-red-500 font-bold">Вакансия не найдена.</div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-8 animate-in fade-in duration-500">
       <Card className="overflow-hidden border-none shadow-2xl bg-white">
-        {/* Декоративная полоса сверху */}
         <div className="h-2 bg-blue-600 w-full"></div>
 
         <div className="p-8">
@@ -94,19 +113,16 @@ const VacancyDetail = () => {
               </div>
 
               <div className="flex flex-wrap gap-y-3 gap-x-6">
-                {/* Город */}
                 <div className="flex items-center gap-2 text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                   <MapPin size={18} className="text-blue-500" />
                   <span className="font-medium">{job.city || 'Удаленно / Город не указан'}</span>
                 </div>
 
-                {/* Зарплата */}
                 <div className="flex items-center gap-2 text-slate-700 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
                   <DollarSign size={18} className="text-green-600" />
                   <span className="font-bold">{job.salary || 'З/П по результатам'}</span>
                 </div>
 
-                {/* Дата */}
                 <div className="flex items-center gap-2 text-slate-500 py-1.5">
                   <Calendar size={18} />
                   <span>{new Date(job.createdAt || Date.now()).toLocaleDateString()}</span>
@@ -114,7 +130,6 @@ const VacancyDetail = () => {
               </div>
             </div>
 
-            {/* Кнопка отклика */}
             {isAuthenticated && !isRecruiter && (
               <Button
                 variant={applied ? "outline" : "primary"}
@@ -128,7 +143,6 @@ const VacancyDetail = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Левая колонка - Основной контент */}
             <div className="md:col-span-2 space-y-6">
               <section>
                 <div className="flex items-center gap-2 mb-4 text-slate-800">
@@ -141,7 +155,6 @@ const VacancyDetail = () => {
               </section>
             </div>
 
-            {/* Правая колонка - Карточка статуса */}
             <div className="space-y-4">
               <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm space-y-4">
                 <div className="flex items-center gap-2 text-slate-800 border-b border-slate-50 pb-3">
@@ -152,7 +165,6 @@ const VacancyDetail = () => {
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-lg font-black text-slate-900 leading-tight">
-                      {/* Обращаемся к данным из Profile через алиас */}
                       {job.RecruiterProfile?.full_name || 'Загрузка имени...'}
                     </span>
                     <ShieldCheck size={16} className="text-blue-500" title="Проверенный рекрутер" />
