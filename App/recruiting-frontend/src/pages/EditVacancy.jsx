@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card';
 const EditVacancy = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
         title: '',
@@ -23,13 +24,11 @@ const EditVacancy = () => {
         const fetchData = async () => {
             try {
                 const res = await api.get(`/vacancies/${id}`);
-
                 setFormData({
                     title: res.data.title || '',
                     description: res.data.description || '',
                     city: res.data.city || '',
                     salary: res.data.salary || '',
-                    // Используем данные из include бэкенда
                     checklist: res.data.CheckListTemplates || []
                 });
                 setLoading(false);
@@ -42,22 +41,41 @@ const EditVacancy = () => {
         fetchData();
     }, [id, navigate]);
 
+    const validate = () => {
+        const newErrors = {};
+        if (!formData.title.trim()) {
+            newErrors.title = 'Введите заголовок вакансии';
+        } else if (formData.title.trim().length < 3) {
+            newErrors.title = 'Заголовок должен содержать минимум 3 символа';
+        }
+        if (!formData.city.trim()) {
+            newErrors.city = 'Введите город';
+        }
+        if (!formData.description.trim()) {
+            newErrors.description = 'Введите описание';
+        } else if (formData.description.trim().length < 10) {
+            newErrors.description = 'Описание должно содержать минимум 10 символов';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        setErrors(prev => ({ ...prev, [e.target.name]: '' }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validate()) return;
         setSaving(true);
         try {
-            // Отправляем только разрешенные для редактирования поля
-            const dataToSend = {
+            await api.put(`/vacancies/${id}`, {
                 title: formData.title,
                 description: formData.description,
                 city: formData.city,
                 salary: formData.salary
-            };
-            await api.put(`/vacancies/${id}`, dataToSend);
+            });
             alert("Вакансия успешно обновлена!");
             navigate('/my-vacancies');
         } catch (err) {
@@ -79,29 +97,30 @@ const EditVacancy = () => {
                 <h1 className="text-3xl font-black text-slate-800">Редактировать вакансию</h1>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-8" noValidate>
                 <Card className="p-6 space-y-4">
                     <h2 className="text-xl font-bold border-b pb-2">Основная информация</h2>
                     <div className="grid gap-4">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Название должности</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Название должности *</label>
                             <input
                                 name="title"
                                 value={formData.title}
                                 onChange={handleChange}
-                                className="w-full p-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                required
+                                className={`w-full p-3 bg-gray-50 border rounded-xl focus:ring-2 outline-none ${errors.title ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
                             />
+                            {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Город</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Город *</label>
                                 <input
                                     name="city"
                                     value={formData.city}
                                     onChange={handleChange}
-                                    className="w-full p-3 bg-gray-50 border rounded-xl"
+                                    className={`w-full p-3 bg-gray-50 border rounded-xl ${errors.city ? 'border-red-500' : ''}`}
                                 />
+                                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">Зарплата</label>
@@ -115,20 +134,19 @@ const EditVacancy = () => {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Описание</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Описание *</label>
                             <textarea
                                 name="description"
                                 value={formData.description}
                                 onChange={handleChange}
                                 rows={6}
-                                className="w-full p-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                required
+                                className={`w-full p-3 bg-gray-50 border rounded-xl focus:ring-2 outline-none ${errors.description ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
                             />
+                            {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
                         </div>
                     </div>
                 </Card>
 
-                {/* Информационный чек-лист (только для чтения) */}
                 <Card className="p-6 space-y-4 bg-gray-50/50">
                     <div className="flex justify-between items-center border-b pb-2">
                         <div className="flex items-center gap-2 text-slate-600">
@@ -139,7 +157,6 @@ const EditVacancy = () => {
                             Только для чтения
                         </span>
                     </div>
-
                     <div className="space-y-2">
                         {formData.checklist.length > 0 ? (
                             formData.checklist.map((stage, index) => (
@@ -147,20 +164,13 @@ const EditVacancy = () => {
                                     <span className="flex items-center justify-center font-bold text-blue-600 bg-blue-50 w-8 h-8 rounded-full text-sm">
                                         {index + 1}
                                     </span>
-                                    <span className="text-slate-700 font-medium">
-                                        {stage.stage_name}
-                                    </span>
+                                    <span className="text-slate-700 font-medium">{stage.stage_name}</span>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-center text-gray-400 py-4 italic text-sm">
-                                Этапы для этой вакансии не были заданы.
-                            </p>
+                            <p className="text-center text-gray-400 py-4 italic text-sm">Этапы для этой вакансии не были заданы.</p>
                         )}
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-2">
-                        * Структура этапов не может быть изменена после публикации вакансии, чтобы не нарушать процесс текущих откликов.
-                    </p>
                 </Card>
 
                 <div className="flex justify-end gap-3">

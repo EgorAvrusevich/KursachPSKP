@@ -85,6 +85,16 @@ const ManageVacancy = () => {
         }
     };
 
+    // Начать рассмотрение: создать чат + сменить статус
+    const handleStartReview = async (app) => {
+        try {
+            // 1. Меняем статус на "На рассмотрении" (это создаст чат на бэкенде)
+            await updateStatus(app.ApplicationId, 'На рассмотрении');
+        } catch (err) {
+            alert("Не удалось начать рассмотрение");
+        }
+    };
+
     // Добавление кандидата в базу одобренных
     const handleApproveCandidate = async () => {
         if (!candidateToApprove) return;
@@ -161,6 +171,7 @@ const ManageVacancy = () => {
         } else {
             if (!interviewDate) return alert("Выберите дату и время");
             const localDate = new Date(interviewDate);
+            if (localDate <= new Date()) return alert("Дата интервью должна быть в будущем");
             const timezoneOffset = localDate.getTimezoneOffset() * 60000;
             scheduledAt = new Date(localDate.getTime() - timezoneOffset).toISOString();
         }
@@ -226,13 +237,12 @@ const ManageVacancy = () => {
                                     variant="outline"
                                     size="sm"
                                     className="text-amber-600 border-amber-200"
-                                    onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Рассмотрение'); }}
-                                    disabled={app.status === 'Рассмотрение'}
+                                    onClick={(e) => { e.stopPropagation(); handleStartReview(app); }}
+                                    disabled={app.status === 'На рассмотрении' || app.status === 'Принято'}
                                 >
                                     <Clock size={16} className="mr-1" /> Рассмотреть
                                 </Button>
 
-                                {/* ЗАМЕНЕННАЯ КНОПКА ПРИНЯТЬ/В БАЗУ */}
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -247,8 +257,8 @@ const ManageVacancy = () => {
                                     variant="outline"
                                     size="sm"
                                     className="text-red-600 border-red-200"
-                                    onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Отказ'); }}
-                                    disabled={app.status === 'Отказ'}
+                                    onClick={(e) => { e.stopPropagation(); updateStatus(app.ApplicationId, 'Отклонено'); }}
+                                    disabled={app.status === 'Отклонено'}
                                 >
                                     <XCircle size={16} className="mr-1" /> Отказать
                                 </Button>
@@ -282,7 +292,7 @@ const ManageVacancy = () => {
                         </div>
 
                         <div className="flex gap-3">
-                            <Button variant="outline" className="flex-1" onClick={() => setIsApproveModalOpen(false)}>Отмена</Button>
+                            <Button variant="outline" className="flex-1" onClick={() => { setIsApproveModalOpen(false); setApproveNote(''); }}>Отмена</Button>
                             <Button
                                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                                 onClick={handleApproveCandidate}
@@ -305,7 +315,7 @@ const ManageVacancy = () => {
 
                                     // Разрешаем чек-лист и чат только для "Принято" и "Рассмотрение"
                                     const isRestrictedTab = tab === 'checklist' || tab === 'chat';
-                                    const isAllowedStatus = status === 'Принято' || status === 'Рассмотрение';
+                                    const isAllowedStatus = status === 'Принято' || status === 'На рассмотрении';
 
                                     if (isRestrictedTab && !isAllowedStatus) return null;
 

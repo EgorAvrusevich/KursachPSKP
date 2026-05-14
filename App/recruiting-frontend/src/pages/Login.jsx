@@ -11,24 +11,37 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  const validate = () => {
+    const newErrors = {};
+    if (!email.trim()) {
+      newErrors.email = 'Введите email';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Некорректный формат email';
+    }
+    if (!password) {
+      newErrors.password = 'Введите пароль';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    
+
+    if (!validate()) return;
+
     try {
       const response = await api.post('/auth/login', { email, password });
-
-      // login() сохраняет в localStorage И обновляет React-стейт → Navbar перерисуется
       login({
         token: response.data.token,
         role: response.data.role
       });
-
-      // Редирект на главную или дашборд
-      navigate('/'); 
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Ошибка при входе');
     }
@@ -45,24 +58,26 @@ const Login = () => {
           <p className="text-gray-500 text-sm">Введите свои данные для доступа</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <Input 
-            label="Email" 
-            type="email" 
-            placeholder="admin@hirevich.by" 
+        <form onSubmit={handleLogin} className="space-y-4" noValidate>
+          <Input
+            label="Email"
+            type="email"
+            placeholder="admin@hirevich.by"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: '' })); }}
+            error={errors.email}
             required
           />
-          <Input 
-            label="Пароль" 
-            type="password" 
-            placeholder="••••••••" 
+          <Input
+            label="Пароль"
+            type="password"
+            placeholder="••••••••"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: '' })); }}
+            error={errors.password}
             required
           />
-          
+
           {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
 
           <Button type="submit" className="w-full py-3">

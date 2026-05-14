@@ -37,6 +37,7 @@ const InterviewPage = () => {
     const remoteVideoRef = useRef();
     const pc = useRef(null);
     const localStreamRef = useRef(null);
+    const isNegotiating = useRef(false); // защита от двойного offer
 
     const VideoPlaceholder = () => (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 z-10">
@@ -157,10 +158,20 @@ const InterviewPage = () => {
                 status: { isMicOn: true, isVideoOn: true, role: user.role }
             });
 
-            if (user.role === 'Recruiter') {
+            // Кто пришёл вторым — тот создаёт offer (не зависит от роли)
+            // Используем "perfect negotiation" паттерн:
+            // - Если мы уже отправили offer (isNegotiating = true) — игнорируем
+            // - Если нет — создаём offer и помечаем что мы инициатор
+            if (isNegotiating.current) return;
+            isNegotiating.current = true;
+
+            try {
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 socket.emit('video-offer', { interviewId: id, offer });
+            } catch (e) {
+                console.error("Ошибка создания offer:", e);
+                isNegotiating.current = false;
             }
         });
 
@@ -169,14 +180,32 @@ const InterviewPage = () => {
         });
 
         socket.on('video-offer', async (offer) => {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            socket.emit('video-answer', { interviewId: id, answer });
+            // Если мы сами уже отправили offer — игнорируем входящий (collision)
+            // Тот кто НЕ инициировал — отвечает answer
+            if (isNegotiating.current) {
+                console.log("Пропущен входящий offer — мы уже инициатор");
+                return;
+            }
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('video-answer', { interviewId: id, answer });
+            } catch (e) {
+                console.error("Ошибка обработки offer:", e);
+            }
         });
 
         socket.on('video-answer', async (answer) => {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            // Обрабатываем answer только если мы были инициатором
+            if (!isNegotiating.current) return;
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            } catch (e) {
+                console.error("Ошибка обработки answer:", e);
+            } finally {
+                isNegotiating.current = false;
+            }
         });
 
         socket.on('new-ice-candidate', async (candidate) => {

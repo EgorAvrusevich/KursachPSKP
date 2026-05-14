@@ -84,9 +84,9 @@ const updateApplicationStatus = async (req, res) => {
             return res.status(404).json({ message: "Отклик не найден" });
         }
 
-        // ИСПРАВЛЕНО: Создаем прогресс, если статус стал 'Принято' ИЛИ 'Рассмотрение'
-        const activeStatuses = ['Принято', 'Рассмотрение'];
-        
+        // Создаем прогресс и чат, если статус стал 'Принято' или 'На рассмотрении'
+        const activeStatuses = ['Принято', 'На рассмотрении'];
+
         if (activeStatuses.includes(status)) {
             const existingProgress = await CandidateProgress.findOne({
                 where: { application_id: id },
@@ -110,7 +110,16 @@ const updateApplicationStatus = async (req, res) => {
                 }
             }
 
-            // RabbitMQ публикуем только при финальном принятии (или как у вас задумано)
+            // Создаем чат, если его еще нет
+            const existingChat = await Chat.findOne({
+                where: { application_id: id },
+                transaction: t
+            });
+            if (!existingChat) {
+                await Chat.create({ application_id: id }, { transaction: t });
+            }
+
+            // RabbitMQ публикуем только при финальном принятии
             if (status === 'Принято' && app.status !== 'Принято') {
                 const recruiterId = req.user.UserId || req.user.id;
                 await publishEvent('application_accepted', {

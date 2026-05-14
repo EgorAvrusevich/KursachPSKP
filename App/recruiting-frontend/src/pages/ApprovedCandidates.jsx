@@ -50,12 +50,15 @@ const ApprovedCandidates = () => {
     };
 
     const handleUpdateNote = async () => {
+        if (noteText.length > 1000) {
+            alert("Заметка слишком длинная (макс. 1000 символов)");
+            return;
+        }
         try {
             await api.patch(`/approved/${selectedCandidate.Id}/`, {
                 notes: noteText
             });
             setSelectedCandidate(prev => ({ ...prev, notes: noteText }));
-            // Обновляем в общем списке
             setCandidates(prev => prev.map(c => c.Id === selectedCandidate.Id ? { ...c, notes: noteText } : c));
             setIsEditingNote(false);
         } catch (err) {

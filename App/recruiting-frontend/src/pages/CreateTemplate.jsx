@@ -75,27 +75,36 @@ const CreateTemplate = () => {
     setItems(newItems);
   };
 
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const newErrors = {};
+    if (!templateName.trim()) {
+      newErrors.name = 'Введите название шаблона';
+    } else if (templateName.trim().length < 3) {
+      newErrors.name = 'Название должно содержать минимум 3 символа';
+    }
+    const cleanItems = items.filter(item => item.trim() !== '');
+    if (cleanItems.length === 0) {
+      newErrors.items = 'Добавьте хотя бы один критерий';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
+
     const cleanItems = items.filter(item => item.trim() !== '');
-
-    if (!templateName.trim()) return alert('Введите название шаблона');
-    if (cleanItems.length === 0) return alert('Добавьте хотя бы один критерий');
-
     setLoading(true);
     try {
-      const payload = {
-        name: templateName,
-        items: cleanItems
-      };
-
+      const payload = { name: templateName, items: cleanItems };
       if (isEditMode) {
         await api.put(`/templates/global/${id}`, payload);
       } else {
         await api.post('/templates/create', payload);
       }
-
-      // ПО ЗАВЕРШЕНИЮ: редирект на список
       navigate('/templates/my');
     } catch (err) {
       console.error(err);
@@ -134,13 +143,16 @@ const CreateTemplate = () => {
 
       <Card className="p-6 border-none shadow-xl shadow-blue-50/50 ring-1 ring-gray-100">
         <form onSubmit={handleSave} className="space-y-6">
-          <Input
-            label="Название шаблона"
-            value={templateName}
-            onChange={(e) => setTemplateName(e.target.value)}
-            required
-            className="text-lg font-semibold"
-          />
+          <div>
+            <Input
+              label="Название шаблона"
+              value={templateName}
+              onChange={(e) => { setTemplateName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
+              required
+              className="text-lg font-semibold"
+              error={errors.name}
+            />
+          </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -212,6 +224,7 @@ const CreateTemplate = () => {
             >
               <Plus size={18} /> Добавить пункт
             </button>
+            {errors.items && <p className="text-red-500 text-xs">{errors.items}</p>}
           </div>
 
           <div className="pt-6 border-t border-gray-50 flex justify-end">

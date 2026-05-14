@@ -38,12 +38,9 @@ const createVacancyWithChecklist = async (req, res) => {
 
 const getAllVacancies = async (req, res) => {
     try {
-        const { search, city, salary } = req.query;
+        const { search, city, salary, sort = 'newest', page = 1, limit = 10 } = req.query;
 
-        // Используем [Op.and] для объединения разных фильтров
-        let whereCondition = {
-            [Op.and]: []
-        };
+        let whereCondition = { [Op.and]: [] };
 
         // 1. Фильтр по тексту (название или описание)
         if (search) {
@@ -57,40 +54,69 @@ const getAllVacancies = async (req, res) => {
 
         // 2. Фильтр по городу
         if (city) {
-            whereCondition[Op.and].push({ city: city });
+            whereCondition[Op.and].push({ city });
         }
 
         // 3. Фильтр по зарплате (логика "от")
-        // Предполагаем, что в базе salary — это строка или число, которое можно сравнить
         if (salary) {
             whereCondition[Op.and].push(
                 sequelize.where(
-                    // Очищаем колонку salary от '$', ' ', и прочих символов, затем кастим в INT
                     sequelize.literal("TRY_CAST(REPLACE(REPLACE([Vacancy].[salary], '$', ''), ' ', '') AS INT)"),
-                    {
-                        [Op.gte]: parseInt(salary)
-                    }
+                    { [Op.gte]: parseInt(salary) }
                 )
             );
         }
-        // Если фильтров нет, удаляем пустой [Op.and]
+
         if (whereCondition[Op.and].length === 0) {
             whereCondition = {};
         }
 
-        const vacancies = await Vacancy.findAll({
+        // Сортировка
+        let order = [['createdAt', 'DESC']];
+        switch (sort) {
+            case 'oldest':
+                order = [['createdAt', 'ASC']];
+                break;
+            case 'salary_desc':
+                order = [[sequelize.literal("TRY_CAST(REPLACE(REPLACE([Vacancy].[salary], '$', ''), ' ', '') AS INT)"), 'DESC']];
+                break;
+            case 'salary_asc':
+                order = [[sequelize.literal("TRY_CAST(REPLACE(REPLACE([Vacancy].[salary], '$', ''), ' ', '') AS INT)"), 'ASC']];
+                break;
+            case 'title_asc':
+                order = [['title', 'ASC']];
+                break;
+            case 'title_desc':
+                order = [['title', 'DESC']];
+                break;
+            case 'newest':
+            default:
+                order = [['createdAt', 'DESC']];
+                break;
+        }
+
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+
+        const { count, rows: vacancies } = await Vacancy.findAndCountAll({
             where: whereCondition,
             include: [
                 {
                     model: Profile,
-                    as: 'RecruiterProfile', // Тот самый alias из твоих ассоциаций
-                    attributes: ['full_name'] // Берем только имя
+                    as: 'RecruiterProfile',
+                    attributes: ['full_name']
                 }
             ],
-            order: [['createdAt', 'DESC']]
+            order,
+            limit: parseInt(limit),
+            offset
         });
 
-        res.json(vacancies);
+        res.json({
+            vacancies,
+            total: count,
+            page: parseInt(page),
+            totalPages: Math.ceil(count / parseInt(limit))
+        });
     } catch (error) {
         console.error("Ошибка при получении вакансий:", error);
         res.status(500).json({ message: 'Ошибка при получении вакансий' });

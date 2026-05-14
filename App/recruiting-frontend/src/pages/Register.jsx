@@ -14,13 +14,42 @@ const Register = () => {
     role: 'Candidate'
   });
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const navigate = useNavigate();
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Введите ФИО';
+    } else if (formData.fullName.trim().length < 2) {
+      newErrors.fullName = 'ФИО должно содержать минимум 2 символа';
+    }
+    if (!formData.email.trim()) {
+      newErrors.email = 'Введите email';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Некорректный формат email';
+    }
+    if (!formData.password) {
+      newErrors.password = 'Введите пароль';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Пароль должен содержать минимум 6 символов';
+    }
+    if (!['Candidate', 'Recruiter'].includes(formData.role)) {
+      newErrors.role = 'Выберите роль';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setError('');
+
+    if (!validate()) return;
+
     try {
       await api.post('/auth/register', formData);
-      navigate('/login'); // После регистрации отправляем на логин
+      navigate('/login');
     } catch (err) {
       setError(err.response?.data?.message || 'Ошибка при регистрации');
     }
@@ -36,28 +65,34 @@ const Register = () => {
           <h1 className="text-2xl font-bold text-gray-900">Регистрация</h1>
         </div>
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <Input 
-            label="ФИО" 
+        <form onSubmit={handleRegister} className="space-y-4" noValidate>
+          <Input
+            label="ФИО"
             placeholder="Иванов Иван Иванович"
-            onChange={(e) => setFormData({...formData, fullName: e.target.value})}
+            value={formData.fullName}
+            onChange={(e) => { setFormData({...formData, fullName: e.target.value}); setErrors(prev => ({ ...prev, fullName: '' })); }}
+            error={errors.fullName}
             required
           />
-          <Input 
-            label="Email" 
-            type="email" 
+          <Input
+            label="Email"
+            type="email"
             placeholder="example@mail.com"
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
+            value={formData.email}
+            onChange={(e) => { setFormData({...formData, email: e.target.value}); setErrors(prev => ({ ...prev, email: '' })); }}
+            error={errors.email}
             required
           />
-          <Input 
-            label="Пароль" 
-            type="password" 
+          <Input
+            label="Пароль"
+            type="password"
             placeholder="••••••••"
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            value={formData.password}
+            onChange={(e) => { setFormData({...formData, password: e.target.value}); setErrors(prev => ({ ...prev, password: '' })); }}
+            error={errors.password}
             required
           />
-          
+
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-gray-700">Я хочу:</label>
             <div className="grid grid-cols-2 gap-4">
@@ -76,6 +111,7 @@ const Register = () => {
                 Нанять сотрудника
               </button>
             </div>
+            {errors.role && <p className="text-red-500 text-xs">{errors.role}</p>}
           </div>
 
           {error && <p className="text-red-500 text-xs font-medium">{error}</p>}

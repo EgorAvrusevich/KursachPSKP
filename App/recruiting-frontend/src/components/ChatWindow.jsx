@@ -82,6 +82,10 @@ const ChatWindow = ({ applicationId, currentUserId }) => {
             console.error("Отправка прервана: пустое поле или нет ID");
             return;
         }
+        if (input.trim().length > 5000) {
+            alert("Сообщение слишком длинное (макс. 5000 символов)");
+            return;
+        }
 
         const messageData = {
             chatId,
