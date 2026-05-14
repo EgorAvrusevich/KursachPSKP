@@ -51,7 +51,7 @@ const ApprovedCandidates = () => {
 
     const handleUpdateNote = async () => {
         try {
-            await api.patch(`/auth/approved-candidates/${selectedCandidate.Id}/`, {
+            await api.patch(`/approved/${selectedCandidate.Id}/`, {
                 notes: noteText
             });
             setSelectedCandidate(prev => ({ ...prev, notes: noteText }));
@@ -163,7 +163,7 @@ const ApprovedCandidates = () => {
                         {/* Хедер модалки */}
                         <div className="p-4 border-b flex justify-between items-center bg-white">
                             <div className="flex gap-6 ml-2">
-                                {['profile', 'interview', 'chat'].map((tab) => (
+                                {['profile'].map((tab) => (
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
@@ -237,28 +237,6 @@ const ApprovedCandidates = () => {
                                              {selectedCandidate.CandidateProfile?.bio || "Биография не указана."}
                                          </p>
                                     </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'interview' && (
-                                <div className="p-8 flex flex-col items-center justify-center space-y-6 h-full bg-white">
-                                     <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${interviewMode === 'now' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
-                                        {interviewMode === 'now' ? <Video size={40} /> : <Calendar size={40} />}
-                                    </div>
-                                    <h2 className="text-xl font-bold">Организация встречи</h2>
-                                    <div className="flex p-1.5 bg-slate-100 rounded-2xl w-full max-w-sm">
-                                        <button onClick={() => setInterviewMode('now')} className={`flex-1 py-2 text-sm font-bold rounded-xl ${interviewMode === 'now' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Сейчас</button>
-                                        <button onClick={() => setInterviewMode('scheduled')} className={`flex-1 py-2 text-sm font-bold rounded-xl ${interviewMode === 'scheduled' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Позже</button>
-                                    </div>
-                                    <Button className="w-full max-w-sm" onClick={handleScheduleInterview}>
-                                        {interviewMode === 'now' ? 'Начать видео-чат' : 'Запланировать в календаре'}
-                                    </Button>
-                                </div>
-                            )}
-
-                            {activeTab === 'chat' && (
-                                <div className="h-full bg-white min-h-[400px] flex items-center justify-center text-slate-400">
-                                    <ChatWindow applicationId={selectedCandidate.ApplicationId} />
                                 </div>
                             )}
                         </div>

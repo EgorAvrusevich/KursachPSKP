@@ -1,6 +1,5 @@
 const express = require('express');
 const http = require('http');
-const cors = require('cors');
 const { Server } = require('socket.io');
 const amqp = require('amqplib');
 const { publishEvent } = require('./services/mqService');
@@ -13,6 +12,7 @@ const applicationRoutes = require('./routes/application.routes')
 const templateRoutes = require('./routes/template.routes');
 const approvedRoutes = require('./routes/approved.routes')
 const savedVacancyRoutes = require('./routes/savedVacancy.routes');
+const adminRoutes = require('./routes/admin.routes');
 const startChatWorker = require('./workers/chatWorker');
 const startMessageWorker = require('./workers/MessageWorker');
 
@@ -37,6 +37,7 @@ app.use('/templates', templateRoutes);
 app.use('/applications', applicationRoutes)
 app.use('/approved', approvedRoutes)
 app.use('/saved-vacancies', savedVacancyRoutes)
+app.use('/admin', adminRoutes)
 
 // Логика RabbitMQ
 let channel;

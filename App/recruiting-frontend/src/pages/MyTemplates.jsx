@@ -54,13 +54,6 @@ const MyTemplates = () => {
         </Button>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-          <Sparkles size={16} /> Быстрые пресеты
-        </h2>
-        <TemplateManager onSelect={(stages) => navigate('/templates/create', { state: { initialStages: stages } })} />
-      </section>
-
       <section className="space-y-4">
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
           <Layout size={16} /> Ваши сохраненные шаблоны

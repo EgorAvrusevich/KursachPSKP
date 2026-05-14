@@ -177,10 +177,10 @@ const VacancyDetail = () => {
               <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl">
                 <div className="flex items-center gap-2 mb-4">
                   <Briefcase size={20} className="text-blue-400" />
-                  <h4 className="font-bold">Статус вакансии</h4>
+                  <h4 className="font-bold">Информация</h4> {/* Переименовали из Статус вакансии */}
                 </div>
-                <div className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-500 text-white">
-                  {job.status === 'open' ? 'Активна' : 'Закрыта'}
+                <div className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-green-500 text-white">
+                  Доступна для отклика
                 </div>
                 <p className="mt-4 text-sm text-slate-400 leading-snug">
                   Ваш отклик будет мгновенно доставлен рекрутеру проекта HireVich.

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api'; // тот самый файл из Шага 4
+import { useAuth } from '../context/AuthContext';
+import api from '../api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
@@ -11,6 +12,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -18,11 +20,13 @@ const Login = () => {
     
     try {
       const response = await api.post('/auth/login', { email, password });
-      
-      // Сохраняем токен и роль, которые прислал твой контроллер
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('role', response.data.role);
-      
+
+      // login() сохраняет в localStorage И обновляет React-стейт → Navbar перерисуется
+      login({
+        token: response.data.token,
+        role: response.data.role
+      });
+
       // Редирект на главную или дашборд
       navigate('/'); 
     } catch (err) {

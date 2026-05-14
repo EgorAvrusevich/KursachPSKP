@@ -16,6 +16,9 @@ import ManageVacancy from './pages/ManageVacancy';
 import EditVacancy from './pages/EditVacancy';
 import ApprovedCandidates from './pages/ApprovedCandidates';
 import SavedVacancies from './pages/SavedVacancies';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminUsers from './pages/AdminUsers';
+import AdminModeration from './pages/AdminModeration';
 
 const PrivateRoute = ({ children, role }) => {
   const { user } = useAuth();
@@ -127,6 +130,32 @@ function AppContent() {
             element={
               <PrivateRoute>
                 <ProfilePage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Роуты для администратора */}
+          <Route
+            path="/admin"
+            element={
+              <PrivateRoute role="Admin">
+                <AdminDashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <PrivateRoute role="Admin">
+                <AdminUsers />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/moderation"
+            element={
+              <PrivateRoute role="Admin">
+                <AdminModeration />
               </PrivateRoute>
             }
           />

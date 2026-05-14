@@ -12,8 +12,7 @@ const createVacancyWithChecklist = async (req, res) => {
             description,
             city,
             salary,
-            recruiter_id: req.user.id,
-            status: 'Active'
+            recruiter_id: req.user.id
         }, { transaction: t });
 
         // 2. Работаем с чек-листом
@@ -39,24 +38,61 @@ const createVacancyWithChecklist = async (req, res) => {
 
 const getAllVacancies = async (req, res) => {
     try {
-        const { search } = req.query;
-        let whereCondition = {};
+        const { search, city, salary } = req.query;
 
+        // Используем [Op.and] для объединения разных фильтров
+        let whereCondition = {
+            [Op.and]: []
+        };
+
+        // 1. Фильтр по тексту (название или описание)
         if (search) {
-            whereCondition = {
+            whereCondition[Op.and].push({
                 [Op.or]: [
                     { title: { [Op.like]: `%${search}%` } },
                     { description: { [Op.like]: `%${search}%` } }
                 ]
-            };
+            });
+        }
+
+        // 2. Фильтр по городу
+        if (city) {
+            whereCondition[Op.and].push({ city: city });
+        }
+
+        // 3. Фильтр по зарплате (логика "от")
+        // Предполагаем, что в базе salary — это строка или число, которое можно сравнить
+        if (salary) {
+            whereCondition[Op.and].push(
+                sequelize.where(
+                    // Очищаем колонку salary от '$', ' ', и прочих символов, затем кастим в INT
+                    sequelize.literal("TRY_CAST(REPLACE(REPLACE([Vacancy].[salary], '$', ''), ' ', '') AS INT)"),
+                    {
+                        [Op.gte]: parseInt(salary)
+                    }
+                )
+            );
+        }
+        // Если фильтров нет, удаляем пустой [Op.and]
+        if (whereCondition[Op.and].length === 0) {
+            whereCondition = {};
         }
 
         const vacancies = await Vacancy.findAll({
             where: whereCondition,
+            include: [
+                {
+                    model: Profile,
+                    as: 'RecruiterProfile', // Тот самый alias из твоих ассоциаций
+                    attributes: ['full_name'] // Берем только имя
+                }
+            ],
             order: [['createdAt', 'DESC']]
         });
+
         res.json(vacancies);
     } catch (error) {
+        console.error("Ошибка при получении вакансий:", error);
         res.status(500).json({ message: 'Ошибка при получении вакансий' });
     }
 };
@@ -101,7 +137,7 @@ const applyToVacancy = async (req, res) => {
         await Application.create({
             vacancy_id: req.params.id,
             candidate_id: req.user.id,
-            status: 'Pending'
+            status: 'Новый'
         });
 
         res.status(201).json({ message: 'Отклик успешно отправлен' });
@@ -128,13 +164,13 @@ const getMyVacancies = async (req, res) => {
                         )`),
                         'totalApps'
                     ],
-                    // Количество нерассмотренных (статус 'pending' или тот, что у тебя по дефолту)
+                    // Количество новых откликов (ещё не рассмотрены рекрутером)
                     [
                         sequelize.literal(`(
                             SELECT COUNT(*)
                             FROM Applications AS app
                             WHERE app.vacancy_id = Vacancy.VacancyId
-                              AND app.status = 'pending'
+                              AND app.status = N'Новый'
                         )`),
                         'pendingApps'
                     ]
@@ -260,8 +296,64 @@ const updateVacancy = async (req, res) => {
     }
 };
 
+const deleteVacancy = async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+        const { id } = req.params; // id вакансии из URL
+        const userId = req.user.id;
+
+        const vacancy = await Vacancy.findOne({
+            where: { VacancyId: id, recruiter_id: userId }
+        });
+
+        if (!vacancy) {
+            await t.rollback();
+            return res.status(404).json({ message: 'Вакансия не найдена' });
+        }
+
+        // 1. Получаем ID всех откликов, используя ПРАВИЛЬНОЕ имя поля
+        const applications = await Application.findAll({
+            where: { vacancy_id: id },
+            attributes: ['ApplicationId'], // Здесь было 'id', что вызывало ошибку
+            transaction: t
+        });
+
+        const appIds = applications.map(app => app.ApplicationId);
+
+        if (appIds.length > 0) {
+            // 2. Удаляем прогресс кандидатов
+            await CandidateProgress.destroy({
+                where: { application_id: { [Op.in]: appIds } }, // Убедитесь, что в БД это application_id
+                transaction: t
+            });
+
+            // 3. Удаляем сами отклики
+            await Application.destroy({
+                where: { vacancy_id: id },
+                transaction: t
+            });
+        }
+
+        // 4. Удаляем этапы чек-листа
+        await CheckListTemplate.destroy({
+            where: { vacancy_id: id },
+            transaction: t
+        });
+
+        // 5. Удаляем вакансию
+        await vacancy.destroy({ transaction: t });
+
+        await t.commit();
+        res.json({ message: 'Вакансия успешно удалена' });
+    } catch (error) {
+        if (t) await t.rollback();
+        console.error("Ошибка при удалении вакансии:", error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
 module.exports = {
     getVacancyById, applyToVacancy, getAllVacancies,
     createVacancyWithChecklist, getMyVacancies, getVacancyByApplication,
-    getVacancyCandidates, updateVacancy
+    getVacancyCandidates, updateVacancy, deleteVacancy
 };

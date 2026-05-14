@@ -9,6 +9,7 @@ router.get('/:id/candidates', authenticateToken, vacancyController.getVacancyCan
 router.get('/:id', vacancyController.getVacancyById);
 router.post('/create-with-checklist', authenticateToken, vacancyController.createVacancyWithChecklist);
 router.put('/:id', authenticateToken, vacancyController.updateVacancy);
+router.delete('/:id', authenticateToken, vacancyController.deleteVacancy);
 router.post('/:id/apply', authenticateToken, vacancyController.applyToVacancy);
 
 module.exports = router;

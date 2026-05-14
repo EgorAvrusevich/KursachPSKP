@@ -11,6 +11,10 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING(50),
         allowNull: false,
         validate: { isIn: [['Admin', 'Recruiter', 'Candidate']] }
+    },
+    is_blocked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, { tableName: 'Users' });
 
@@ -27,7 +31,6 @@ const Vacancy = sequelize.define('Vacancy', {
     city: { type: DataTypes.STRING(255) },
     salary: { type: DataTypes.STRING(100) },
     description: { type: DataTypes.TEXT },
-    status: { type: DataTypes.STRING(50), defaultValue: 'open' },
     recruiter_id: { type: DataTypes.INTEGER, allowNull: false }
 }, { tableName: 'Vacancies' });
 
@@ -40,7 +43,7 @@ const CheckListTemplate = sequelize.define('CheckListTemplate', {
 
 const Application = sequelize.define('Application', {
     ApplicationId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    status: { type: DataTypes.STRING(50), defaultValue: 'pending' },
+    status: { type: DataTypes.STRING(50), defaultValue: 'Новый' },
     vacancy_id: { type: DataTypes.INTEGER },
     candidate_id: { type: DataTypes.INTEGER }
 }, { tableName: 'Applications' });

@@ -1,12 +1,12 @@
 const { CandidateProgress, sequelize } = require('../models');
 
 const updateProgressDetail = async (req, res) => {
-    const { id } = req.params; // ID записи из CandidateProgress
+    const { progressId } = req.params; // ID записи из CandidateProgress
     const { is_completed, comment } = req.body;
 
     try {
         // Находим этап
-        const step = await CandidateProgress.findByPk(id);
+        const step = await CandidateProgress.findByPk(progressId);
 
         if (!step) {
             return res.status(404).json({ message: "Запись прогресса не найдена" });
