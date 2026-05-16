@@ -7,6 +7,8 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/my', authenticateToken, ApplicationController.getMyApplications);
 router.get('/:id/checklist', authenticateToken, ApplicationController.getApplicationChecklist);
 router.patch('/:id/status', authenticateToken, ApplicationController.updateApplicationStatus)
+router.get('/:applicationId/chat', authenticateToken, ApplicationController.openChat);
+router.post('/:applicationId/chat', authenticateToken, ApplicationController.createChat);
 router.get('/:applicationId', authenticateToken, ApplicationController.openChat);
 router.post('/:id', authenticateToken, ApplicationController.createApplication);
 

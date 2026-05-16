@@ -39,9 +39,12 @@ const login = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(400).json({ message: 'Неверный пароль' });
 
-        // ИСПРАВЛЕНИЕ: используем user.UserId (как в модели)
+        if (user.is_blocked) {
+            return res.status(403).json({ message: 'Ваш аккаунт заблокирован. Обратитесь к администратору.', is_blocked: true });
+        }
+
         const token = jwt.sign(
-            { id: user.UserId, email: user.email, role: user.role },
+            { id: user.UserId, email: user.email, role: user.role, is_blocked: false },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN }
         );

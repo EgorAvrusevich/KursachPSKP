@@ -5,7 +5,8 @@ import api from '../api';
 import { Card } from '../components/ui/Card';
 import {
     PhoneOff, Mic, MicOff, Video, VideoOff,
-    CheckCircle2, Loader2, Eye, EyeOff, User, ShieldCheck
+    CheckCircle2, Loader2, Eye, EyeOff, User, ShieldCheck,
+    MessageSquare, ListChecks, Send
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,17 +15,15 @@ const InterviewPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // Состояния данных
     const [interviewData, setInterviewData] = useState(null);
     const [checklist, setChecklist] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('checklist');
 
-    // Локальные настройки (не должны перезапускать WebRTC)
     const [isMicOn, setIsMicOn] = useState(true);
     const [isVideoOn, setIsVideoOn] = useState(true);
     const [showComments, setShowComments] = useState(false);
 
-    // Статус собеседника
     const [remoteStatus, setRemoteStatus] = useState({
         isMicOn: true,
         isVideoOn: true,
@@ -32,21 +31,24 @@ const InterviewPage = () => {
         joined: false
     });
 
-    // Refs для управления соединением без ререндеров
     const localVideoRef = useRef();
     const remoteVideoRef = useRef();
     const pc = useRef(null);
     const localStreamRef = useRef(null);
-    const isNegotiating = useRef(false); // защита от двойного offer
+    const isNegotiating = useRef(false);
+
+    // Chat state
+    const [messages, setMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [chatId, setChatId] = useState(null);
+    const chatScrollRef = useRef();
 
     const VideoPlaceholder = () => (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 z-10">
             <div className="w-24 h-24 rounded-full bg-slate-700/50 flex items-center justify-center mb-4 border border-slate-600 shadow-xl">
                 <User size={48} className="text-slate-400" />
             </div>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">
-                Камера выключена
-            </p>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">Камера выключена</p>
         </div>
     );
 
@@ -65,8 +67,6 @@ const InterviewPage = () => {
     const fetchChecklist = useCallback(async () => {
         try {
             const res = await api.get(`/interviews/${id}`);
-            // ВАЖНО: используйте функциональное обновление стейта, 
-            // чтобы избежать зависимостей от самого checklist
             setChecklist(res.data?.Application?.CandidateProgresses || []);
             setShowComments(res.data.show_comments_to_candidate);
         } catch (err) {
@@ -74,14 +74,46 @@ const InterviewPage = () => {
         }
     }, [id]);
 
+    const loadChat = useCallback(async (appId) => {
+        try {
+            const chatRes = await api.get(`/applications/${appId}/chat`);
+            if (chatRes.data) {
+                setChatId(chatRes.data.ChatId);
+                setMessages(chatRes.data.ChatMessages || []);
+                return true;
+            }
+        } catch (chatErr) {
+            setChatId(null);
+            setMessages([]);
+        }
+        return false;
+    }, []);
+
+    const loadChatRef = useRef(loadChat);
+    useEffect(() => { loadChatRef.current = loadChat; }, [loadChat]);
+
+    const handleCreateChat = async () => {
+        const appId = interviewData?.Application?.ApplicationId;
+        if (!appId) return;
+        try {
+            const res = await api.post(`/applications/${appId}/chat`);
+            if (res.data?.ChatId) {
+                setChatId(res.data.ChatId);
+                setMessages([]);
+                if (socket.connected) {
+                    socket.emit('join_chat', res.data.ChatId);
+                }
+            }
+        } catch (err) {
+            console.error("Ошибка создания чата:", err);
+            alert("Не удалось создать чат");
+        }
+    };
+
     const fetchChecklistRef = useRef(fetchChecklist);
+    useEffect(() => { fetchChecklistRef.current = fetchChecklist; }, [fetchChecklist]);
 
-    // Синхронизируем Ref
-    useEffect(() => {
-        fetchChecklistRef.current = fetchChecklist;
-    }, [fetchChecklist]);
-
-    // 1. Загрузка данных интервью
+    // Загрузка данных интервью и чата
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -89,16 +121,18 @@ const InterviewPage = () => {
                 const data = res.data;
                 setInterviewData(data);
 
-                // ИСПРАВЛЕННЫЙ ПУТЬ: данные лежат в data.Application.CandidateProgresses
                 const progressStages = data?.Application?.CandidateProgresses;
                 const templateStages = data?.Application?.Vacancy?.CheckListTemplates;
-
-                const stages = progressStages && progressStages.length > 0
-                    ? progressStages
-                    : templateStages || [];
-
+                const stages = progressStages && progressStages.length > 0 ? progressStages : templateStages || [];
                 setChecklist(stages);
                 setShowComments(data.show_comments_to_candidate);
+
+                // Загружаем чат
+                const appId = data?.Application?.ApplicationId;
+                if (appId) {
+                    await loadChatRef.current(appId);
+                }
+
                 setLoading(false);
             } catch (err) {
                 console.error("Ошибка загрузки:", err);
@@ -108,7 +142,7 @@ const InterviewPage = () => {
         fetchData();
     }, [id, navigate]);
 
-    // 2. Инициализация WebRTC и Socket (только ОДИН раз при входе)
+    // WebRTC и Socket
     useEffect(() => {
         if (!user || !currentUserId || !id) return;
 
@@ -117,21 +151,18 @@ const InterviewPage = () => {
         });
         pc.current = peerConnection;
 
-        // Обработка ICE кандидатов
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit('new-ice-candidate', { interviewId: id, candidate: event.candidate });
             }
         };
 
-        // Получение удаленного трека
         peerConnection.ontrack = (event) => {
             if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = event.streams[0];
             }
         };
 
-        // Настройка медиа
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
             .then(stream => {
                 localStreamRef.current = stream;
@@ -145,26 +176,23 @@ const InterviewPage = () => {
                     role: user.role,
                     mediaStatus: { isMicOn: true, isVideoOn: true }
                 });
+
+                // Подключаемся к чат-комнате
+                if (chatId) {
+                    socket.emit('join_chat', chatId);
+                }
             })
             .catch(err => console.error("Ошибка доступа к камере/микрофону:", err));
 
-        // Socket Listeners
         socket.on('user-joined', async (data) => {
             setRemoteStatus(prev => ({ ...prev, role: data.role, joined: true }));
-
-            // Сообщаем вошедшему наши текущие настройки
             socket.emit('share-status', {
                 interviewId: id,
                 status: { isMicOn: true, isVideoOn: true, role: user.role }
             });
 
-            // Кто пришёл вторым — тот создаёт offer (не зависит от роли)
-            // Используем "perfect negotiation" паттерн:
-            // - Если мы уже отправили offer (isNegotiating = true) — игнорируем
-            // - Если нет — создаём offer и помечаем что мы инициатор
             if (isNegotiating.current) return;
             isNegotiating.current = true;
-
             try {
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
@@ -180,12 +208,7 @@ const InterviewPage = () => {
         });
 
         socket.on('video-offer', async (offer) => {
-            // Если мы сами уже отправили offer — игнорируем входящий (collision)
-            // Тот кто НЕ инициировал — отвечает answer
-            if (isNegotiating.current) {
-                console.log("Пропущен входящий offer — мы уже инициатор");
-                return;
-            }
+            if (isNegotiating.current) return;
             try {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
                 const answer = await peerConnection.createAnswer();
@@ -197,7 +220,6 @@ const InterviewPage = () => {
         });
 
         socket.on('video-answer', async (answer) => {
-            // Обрабатываем answer только если мы были инициатором
             if (!isNegotiating.current) return;
             try {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
@@ -221,11 +243,12 @@ const InterviewPage = () => {
         });
 
         socket.on('checklist-update', () => {
-            console.log("Получено обновление чек-листа");
-            // Вызываем именно текущее значение из Ref
-            if (fetchChecklistRef.current) {
-                fetchChecklistRef.current();
-            }
+            if (fetchChecklistRef.current) fetchChecklistRef.current();
+        });
+
+        // Обработчик сообщений чата
+        socket.on('new_message', (message) => {
+            setMessages(prev => [...prev, message]);
         });
 
         return () => {
@@ -236,25 +259,51 @@ const InterviewPage = () => {
             socket.off('settings-update');
             socket.off('checklist-update');
             socket.off('new-ice-candidate');
+            socket.off('new_message');
             socket.disconnect();
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
             }
             peerConnection.close();
         };
-    }, [id, user?.role]); // Зависим только от ID и Роли, настройки внутри не важны
+    }, [id, user?.role, chatId]);
 
-    // 3. Функции управления (без перезагрузки эффекта)
+    // Подключаемся к чат-комнате при появлении chatId
+    useEffect(() => {
+        if (!chatId) return;
+        if (socket.connected) {
+            socket.emit('join_chat', chatId);
+        } else {
+            socket.connect();
+            socket.on('connect', () => {
+                socket.emit('join_chat', chatId);
+            });
+        }
+    }, [chatId]);
+
+    // Периодическая проверка чата (если ещё не создан)
+    useEffect(() => {
+        if (chatId) return;
+        const appId = interviewData?.Application?.ApplicationId;
+        if (!appId) return;
+        const interval = setInterval(() => {
+            loadChatRef.current(appId);
+        }, 15000);
+        return () => clearInterval(interval);
+    }, [chatId, interviewData]);
+
+    // Прокрутка чата
+    useEffect(() => {
+        chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
     const toggleMic = () => {
         const audioTrack = localStreamRef.current?.getAudioTracks()[0];
         if (audioTrack) {
             const newStatus = !audioTrack.enabled;
             audioTrack.enabled = newStatus;
             setIsMicOn(newStatus);
-            socket.emit('update-media-status', {
-                interviewId: id,
-                status: { isMicOn: newStatus, isVideoOn }
-            });
+            socket.emit('update-media-status', { interviewId: id, status: { isMicOn: newStatus, isVideoOn } });
         }
     };
 
@@ -264,24 +313,15 @@ const InterviewPage = () => {
             const newStatus = !videoTrack.enabled;
             videoTrack.enabled = newStatus;
             setIsVideoOn(newStatus);
-            socket.emit('update-media-status', {
-                interviewId: id,
-                status: { isMicOn, isVideoOn: newStatus }
-            });
+            socket.emit('update-media-status', { interviewId: id, status: { isMicOn, isVideoOn: newStatus } });
         }
     };
 
     const handleToggleComments = async () => {
         if (user?.role !== 'Recruiter') return;
-
         const newValue = !showComments;
         try {
-            // ИСПОЛЬЗУЕМ PATCH вместо GET, так как мы ОБНОВЛЯЕМ данные
-            // И передаем объект с данными вторым аргументом
-            await api.patch(`/interviews/${id}/settings`, {
-                show_comments_to_candidate: newValue
-            });
-
+            await api.patch(`/interviews/${id}/settings`, { show_comments_to_candidate: newValue });
             setShowComments(newValue);
             socket.emit('settings-update', { interviewId: id, showComments: newValue });
             socket.emit('checklist-update', { interviewId: id });
@@ -297,6 +337,18 @@ const InterviewPage = () => {
         navigate(user.role === 'Recruiter' ? '/my-vacancies' : '/my-applications');
     };
 
+    // Отправка сообщения в чат
+    const sendChatMessage = () => {
+        const text = chatInput.trim();
+        if (!text || !chatId || !currentUserId) return;
+        if (text.length > 5000) {
+            alert("Сообщение слишком длинное (макс. 5000 символов)");
+            return;
+        }
+        socket.emit('send_message', { chatId, senderId: currentUserId, text });
+        setChatInput('');
+    };
+
     if (loading) return (
         <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
             <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
@@ -309,7 +361,6 @@ const InterviewPage = () => {
             {/* ВИДЕО-КОНФЕРЕНЦИЯ */}
             <div className="flex-grow flex flex-col gap-4 min-w-0">
                 <div className="relative flex-grow grid grid-cols-2 gap-4 bg-slate-950 rounded-[2.5rem] p-4 shadow-2xl border border-slate-800">
-
                     {/* МОЕ ВИДЕО */}
                     <div className="relative bg-slate-900 rounded-3xl overflow-hidden aspect-video self-center border border-slate-800/50">
                         {!isVideoOn && <VideoPlaceholder />}
@@ -360,80 +411,159 @@ const InterviewPage = () => {
                 </div>
             </div>
 
-            {/* ЧЕК-ЛИСТ */}
+            {/* ПАНЕЛЬ СПРАВА: ЧЕК-ЛИСТ + ЧАТ */}
             <Card className="w-96 flex-shrink-0 flex flex-col shadow-2xl border-none rounded-[2.5rem] overflow-hidden bg-white">
-                <div className="p-8 border-b border-slate-100 flex-shrink-0 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-900">Чек-лист</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Интервью в процессе</p>
-                        </div>
-                    </div>
-                    {user?.role === 'Recruiter' && (
+                {/* Вкладки */}
+                <div className="flex border-b border-slate-100 flex-shrink-0">
+                    <button
+                        onClick={() => setActiveTab('checklist')}
+                        className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'checklist' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/30' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        <ListChecks size={16} /> Чек-лист
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('chat')}
+                        className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/30' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        <MessageSquare size={16} /> Чат
+                    </button>
+                </div>
+
+                {/* Кнопка показа комментариев (только для рекрутера) */}
+                {user?.role === 'Recruiter' && activeTab === 'checklist' && (
+                    <div className="px-4 py-2 border-b border-slate-50 flex-shrink-0 flex justify-end">
                         <button
-                            onClick={async () => {
-                                const newValue = !showComments;
-                                await api.patch(`/interviews/${id}/settings`, { show_comments_to_candidate: newValue }); // Проверь метод (PATCH/PUT)
-                                setShowComments(newValue);
-                                // Оповещаем кандидата и о смене настроек, и о необходимости обновить данные
-                                socket.emit('settings-update', { interviewId: id, showComments: newValue });
-                                socket.emit('checklist-update', { interviewId: id });
-                            }}
+                            onClick={handleToggleComments}
                             className={`p-2 rounded-lg transition-colors ${showComments ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-400'}`}
+                            title={showComments ? 'Скрыть комментарии от кандидата' : 'Показать комментарии кандидату'}
                         >
-                            {showComments ? <Eye size={18} /> : <EyeOff size={18} />}
+                            {showComments ? <Eye size={16} /> : <EyeOff size={16} />}
                         </button>
+                    </div>
+                )}
+
+                {/* Контент вкладок */}
+                <div className="flex-grow overflow-hidden flex flex-col">
+                    {activeTab === 'checklist' ? (
+                        <div className="flex-grow overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+                            {checklist.map((stage, index) => {
+                                const stageId = stage.ProgressId || stage.id || stage.id;
+                                const stageName = stage.CheckListTemplate?.name || stage.CheckListTemplate?.stage_name || stage.stage_name || `Этап ${index + 1}`;
+                                return (
+                                    <div key={stageId || index} className={`p-4 rounded-2xl border-2 transition-all ${stage.is_completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-transparent shadow-sm'}`}>
+                                        <div className="flex items-center justify-between cursor-pointer" onClick={() => {
+                                            if (currentUserRole !== 'Recruiter' || !stageId) return;
+                                            const newStatus = !stage.is_completed;
+                                            api.patch(`/interviews/progress/${stageId}`, { is_completed: newStatus }).then(() => {
+                                                setChecklist(prev => prev.map(item =>
+                                                    (item.ProgressId === stageId || item.id === stageId) ? { ...item, is_completed: newStatus } : item
+                                                ));
+                                                socket.emit('checklist-update', { interviewId: id });
+                                            });
+                                        }}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${stage.is_completed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{index + 1}</div>
+                                                <span className="font-bold text-[11px] text-slate-700 uppercase tracking-tight">{stageName}</span>
+                                            </div>
+                                            {stage.is_completed && <CheckCircle2 className="text-emerald-500" size={18} />}
+                                        </div>
+                                        {(currentUserRole === 'Recruiter' || showComments) && (
+                                            <div className="mt-3">
+                                                {currentUserRole === 'Recruiter' ? (
+                                                    <textarea className="w-full p-2 bg-slate-50 rounded-xl text-[11px] border-none focus:ring-1 focus:ring-blue-500/50 resize-none italic" placeholder="Заметка рекрутера..." defaultValue={stage.comment} onBlur={(e) => {
+                                                        const newComment = e.target.value;
+                                                        api.patch(`/interviews/progress/${stageId}`, { comment: newComment }).then(() => {
+                                                            if (showComments) socket.emit('checklist-update', { interviewId: id });
+                                                        });
+                                                    }} />
+                                                ) : (stage.comment && <div className="p-2 bg-blue-50/50 rounded-lg border border-blue-100 text-[10px] text-blue-700 italic">{stage.comment}</div>)}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        /* ЧАТ */
+                        <div className="flex-grow flex flex-col bg-slate-50/30">
+                            {chatId ? (
+                                <>
+                                    {/* Сообщения */}
+                                    <div className="flex-grow overflow-y-auto p-4 space-y-3">
+                                        {messages.length === 0 ? (
+                                            <div className="text-center py-8 text-slate-400 text-sm">
+                                                <MessageSquare size={32} className="mx-auto mb-2 opacity-30" />
+                                                <p>Начните переписку</p>
+                                            </div>
+                                        ) : (
+                                            messages.map((msg, idx) => {
+                                                const isMe = msg.sender_id === currentUserId;
+                                                const isSystem = msg.is_system;
+                                                if (isSystem) {
+                                                    return (
+                                                        <div key={msg.MessageId || idx} className="flex justify-center">
+                                                            <div className="bg-white border border-blue-100 px-4 py-2 rounded-2xl text-xs text-blue-600 shadow-sm">
+                                                                {msg.message_text}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return (
+                                                    <div key={msg.MessageId || idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none'} shadow-sm`}>
+                                                            {msg.message_text}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        <div ref={chatScrollRef} />
+                                    </div>
+
+                                    {/* Инпут */}
+                                    <div className="p-3 border-t border-slate-100 bg-white flex gap-2 flex-shrink-0">
+                                        <input
+                                            type="text"
+                                            value={chatInput}
+                                            onChange={(e) => setChatInput(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                                            placeholder="Сообщение..."
+                                            className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                            maxLength={5000}
+                                        />
+                                        <button
+                                            onClick={sendChatMessage}
+                                            disabled={!chatInput.trim()}
+                                            className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        >
+                                            <Send size={18} />
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex-grow flex items-center justify-center text-slate-400 text-sm p-8 text-center">
+                                    <div>
+                                        <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
+                                        <p className="font-semibold text-slate-500">Чат ещё не создан</p>
+                                        <p className="text-xs mt-1 mb-4">Чат создаётся при начале рассмотрения кандидата</p>
+                                        {currentUserRole === 'Recruiter' ? (
+                                            <button
+                                                onClick={handleCreateChat}
+                                                className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md"
+                                            >
+                                                Создать чат
+                                            </button>
+                                        ) : (
+                                            <p className="text-xs text-slate-300">Ожидайте, пока рекрутер создаст чат</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
-
-                <div className="flex-grow overflow-y-auto p-4 space-y-3 bg-slate-50/50">
-                    {checklist.map((stage, index) => {
-                        console.log(stage);
-                        const stageId = stage.ProgressId || stage.id || stage.id;
-                        const stageName = stage.CheckListTemplate?.name || stage.CheckListTemplate?.stage_name || stage.stage_name || `Этап ${index + 1}`;
-                        return (
-                            <div key={stageId || index} className={`p-4 rounded-2xl border-2 transition-all ${stage.is_completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-transparent shadow-sm'}`}>
-                                <div className="flex items-center justify-between cursor-pointer" onClick={() => {
-                                    if (currentUserRole !== 'Recruiter' || !stageId) return;
-                                    const newStatus = !stage.is_completed;
-
-                                    api.patch(`/interviews/progress/${stageId}`, { is_completed: newStatus }).then(() => {
-                                        // 1. Обновляем у себя локально
-                                        setChecklist(prev => prev.map(item =>
-                                            (item.ProgressId === stageId || item.id === stageId) ? { ...item, is_completed: newStatus } : item
-                                        ));
-
-                                        // 2. ОПОВЕЩАЕМ КАНДИДАТА (Важно!)
-                                        socket.emit('checklist-update', { interviewId: id });
-                                    });
-                                }}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${stage.is_completed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{index + 1}</div>
-                                        <span className="font-bold text-[11px] text-slate-700 uppercase tracking-tight">{stageName}</span>
-                                    </div>
-                                    {stage.is_completed && <CheckCircle2 className="text-emerald-500" size={18} />}
-                                </div>
-                                {(currentUserRole === 'Recruiter' || showComments) && (
-                                    <div className="mt-3">
-                                        {currentUserRole === 'Recruiter' ? (
-                                            <textarea className="w-full p-2 bg-slate-50 rounded-xl text-[11px] border-none focus:ring-1 focus:ring-blue-500/50 resize-none italic" placeholder="Заметка рекрутера..." defaultValue={stage.comment} onBlur={(e) => {
-                                                const newComment = e.target.value;
-                                                api.patch(`/interviews/progress/${stageId}`, { comment: newComment }).then(() => {
-                                                    if (showComments) {
-                                                        socket.emit('checklist-update', { interviewId: id });
-                                                    }
-                                                });
-                                            }} />
-                                        ) : (stage.comment && <div className="p-2 bg-blue-50/50 rounded-lg border border-blue-100 text-[10px] text-blue-700 italic">{stage.comment}</div>)}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </Card >
-        </div >
+            </Card>
+        </div>
     );
 };
 

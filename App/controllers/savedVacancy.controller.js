@@ -17,7 +17,7 @@ const getSavedVacancies = async (req, res) => {
                             attributes: ['full_name']
                         }
                     ],
-                    attributes: ['VacancyId', 'title', 'city', 'salary', 'description', 'status', 'createdAt']
+                    attributes: ['VacancyId', 'title', 'city', 'salary', 'description', 'createdAt']
                 }
             ],
             order: [['created_at', 'DESC']]

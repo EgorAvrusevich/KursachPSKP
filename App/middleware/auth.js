@@ -1,14 +1,24 @@
 const jwt = require('jsonwebtoken');
+const { User } = require('../models');
 
-// 1. Проверка наличия и валидности токена
+// 1. Проверка наличия и валидности токена + проверка блокировки
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
 
     if (!token) return res.status(401).json({ message: 'Доступ запрещен. Токен отсутствует.' });
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
         if (err) return res.status(403).json({ message: 'Неверный или просроченный токен.' });
+
+        // Проверяем актуальный статус блокировки из БД
+        try {
+            const dbUser = await User.findByPk(user.id, { attributes: ['is_blocked'] });
+            if (dbUser?.is_blocked) {
+                return res.status(403).json({ message: 'Ваш аккаунт заблокирован. Обратитесь к администратору.', is_blocked: true });
+            }
+        } catch { /* при ошибке БД пропускаем */ }
+
         req.user = user;
         next();
     });

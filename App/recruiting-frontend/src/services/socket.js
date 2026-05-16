@@ -1,11 +1,9 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost';
-
-const socket = io(SOCKET_URL, {
-    autoConnect: false, // Чтобы не подключаться сразу при импорте
+const socket = io('/', {
+    autoConnect: false,
     withCredentials: true,
-    transports: ['websocket', 'polling'] // Для стабильности
+    transports: ['websocket', 'polling']
 });
 
 // Добавим логи для отладки

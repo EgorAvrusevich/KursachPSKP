@@ -1,5 +1,4 @@
 services:
-  # База данных MSSQL
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: mssql_server
@@ -10,11 +9,10 @@ services:
     ports:
       - "1433:1433"
     volumes:
-      - mssql_data:/var/opt/mssql # Сохраняем данные здесь
+      - mssql_data:/var/opt/mssql
     networks:
       - recruiting_network
 
-  # Брокер сообщений RabbitMQ
   rabbitmq:
     image: rabbitmq:3-management
     container_name: recruiting_mq
@@ -24,9 +22,7 @@ services:
     networks:
       - recruiting_network
 
-  # Backend API
   api:
-    # <-- Имя сервиса должно быть именно 'api'
     build: .
     container_name: recruiting_api
     restart: always
@@ -35,7 +31,7 @@ services:
       - DB_HOST=db
       - DB_PORT=1433
       - DB_PASSWORD=Kv6084242kv!
-      - JWT_SECRET=your_super_secret_key_123 # ПРОВЕРЬ ЭТО
+      - JWT_SECRET=your_super_secret_key_123
       - JWT_EXPIRES_IN=24h
       - RABBITMQ_HOST=rabbitmq
     depends_on:
@@ -43,21 +39,22 @@ services:
       - rabbitmq
     networks:
       - recruiting_network
-  # Nginx Reverse Proxy
-  nginx:
-      image: nginx:latest
-      container_name: recruiting_proxy
-      ports:
-        - "80:80"
-      volumes:
-        # Заменяем дефолтный конфиг на наш
-        - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      depends_on:
-        - api
-      networks:
-        - recruiting_network
 
-# ВАЖНО: Блок volumes должен быть на одном уровне с services!
+  nginx:
+    image: nginx:latest
+    container_name: recruiting_proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./recruiting-frontend/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+    networks:
+      - recruiting_network
+
 volumes:
   mssql_data:
     driver: local

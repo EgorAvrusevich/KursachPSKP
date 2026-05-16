@@ -62,10 +62,9 @@ const MyApplications = () => {
         }
     }, [activeTab, selectedApp]);
 
-    // ОБНОВЛЕННАЯ ЛОГИКА ПРОВЕРКИ СТАТУСА
     const appStatus = selectedApp?.status?.trim() || '';
-    const isAccepted = appStatus === 'Принято' || appStatus === 'Рассмотрение';
-    const isChecklistVisible = isAccepted;
+    const isAccepted = appStatus === 'Принято' || appStatus === 'На рассмотрении';
+    const isChecklistVisible = isAccepted || appStatus === 'Новый';
 
     const getStatusStyle = (status) => {
         const s = status?.trim();

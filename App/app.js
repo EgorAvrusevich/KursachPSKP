@@ -29,15 +29,15 @@ const io = new Server(server, {
 app.use(express.json());
 const PORT = 3000;
 
-app.use('/auth', authRoutes);
-app.use('/progress', progressRoutes);
-app.use('/interviews', interviewRoutes);
-app.use('/vacancies', vacancyRoutes);
-app.use('/templates', templateRoutes);
-app.use('/applications', applicationRoutes)
-app.use('/approved', approvedRoutes)
-app.use('/saved-vacancies', savedVacancyRoutes)
-app.use('/admin', adminRoutes)
+app.use('/api/auth', authRoutes);
+app.use('/api/progress', progressRoutes);
+app.use('/api/interviews', interviewRoutes);
+app.use('/api/vacancies', vacancyRoutes);
+app.use('/api/templates', templateRoutes);
+app.use('/api/applications', applicationRoutes)
+app.use('/api/approved', approvedRoutes)
+app.use('/api/saved-vacancies', savedVacancyRoutes)
+app.use('/api/admin', adminRoutes)
 
 // Логика RabbitMQ
 let channel;

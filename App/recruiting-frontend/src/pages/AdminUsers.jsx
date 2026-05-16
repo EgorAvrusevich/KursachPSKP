@@ -155,18 +155,34 @@ const AdminUsers = () => {
               </thead>
               <tbody>
                 {users.map((user) => (
-                  <tr key={user.UserId} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={user.UserId}
+                    className={`border-b border-gray-50 transition-colors ${
+                      user.is_blocked
+                        ? 'bg-red-50/40 hover:bg-red-50/70 opacity-75'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
                     <td className="py-3 px-4 text-sm">{user.UserId}</td>
-                    <td className="py-3 px-4 text-sm font-medium">{user.email}</td>
+                    <td className="py-3 px-4 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className={user.is_blocked ? 'text-gray-400 line-through' : ''}>{user.email}</span>
+                        {user.is_blocked && (
+                          <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-wider rounded">
+                            Заблокирован
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3 px-4">{getRoleBadge(user.role)}</td>
                     <td className="py-3 px-4">
                       {user.is_blocked ? (
-                        <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
-                          <ShieldX size={14} /> Заблокирован
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                          <ShieldX size={13} /> Заблокирован
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
-                          <UserCheck size={14} /> Активен
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                          <UserCheck size={13} /> Активен
                         </span>
                       )}
                     </td>

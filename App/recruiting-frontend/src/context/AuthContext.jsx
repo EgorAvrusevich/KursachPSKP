@@ -9,9 +9,19 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = () => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('role');
-        
+
         if (token && role) {
-            // Если данные в стейте отличаются от хранилища, обновляем
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.is_blocked) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('role');
+                    setUser(null);
+                    setLoading(false);
+                    return;
+                }
+            } catch { /* ignore */ }
+
             setUser((prev) => {
                 if (prev?.token !== token || prev?.role !== role) {
                     return { token, role };

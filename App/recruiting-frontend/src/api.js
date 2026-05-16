@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost/api',
+  baseURL: '/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
@@ -19,14 +19,22 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-// Перехватчик ответов для обработки 401 ошибки
+// Перехватчик ответов для обработки ошибок
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Токен протух или невалиден
-      localStorage.removeItem('token');
-      window.location.href = '/login'; // Жесткий редирект для сброса состояния React
+    if (error.response) {
+      if (error.response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        window.location.href = '/login';
+      }
+      if (error.response.status === 403 && error.response.data?.is_blocked) {
+        alert('Ваш аккаунт заблокирован. Обратитесь к администратору.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

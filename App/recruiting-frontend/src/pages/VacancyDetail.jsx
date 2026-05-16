@@ -15,7 +15,17 @@ const VacancyDetail = () => {
 
   const userRole = localStorage.getItem('role');
   const isRecruiter = userRole === 'Recruiter';
+  const isAdmin = userRole === 'Admin';
   const isAuthenticated = !!localStorage.getItem('token');
+
+  const isBlocked = (() => {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return !!payload.is_blocked;
+    } catch { return false; }
+  })();
 
   // Проверяем, сохранена ли вакансия в избранном
   useEffect(() => {
@@ -97,7 +107,7 @@ const VacancyDetail = () => {
                 <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
                   {job.title}
                 </h1>
-                {isAuthenticated && !isRecruiter && (
+                {isAuthenticated && !isRecruiter && !isAdmin && !isBlocked && (
                   <button
                     onClick={handleSave}
                     className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
@@ -130,7 +140,7 @@ const VacancyDetail = () => {
               </div>
             </div>
 
-            {isAuthenticated && !isRecruiter && (
+            {isAuthenticated && !isRecruiter && !isAdmin && !isBlocked && (
               <Button
                 variant={applied ? "outline" : "primary"}
                 className={`w-full md:w-auto min-w-[200px] h-14 rounded-xl text-lg font-bold transition-all shadow-lg shadow-blue-200 active:scale-95 ${!applied && 'hover:shadow-blue-300'}`}

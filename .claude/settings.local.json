@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Read(//LESSONS/Курсач ПСКП/App/recruiting-frontend/src/**)",
-      "Read(//d/LESSONS/Курсач ПСКП/App/recruiting-frontend/src/**)"
+      "Read(//d/LESSONS/Курсач ПСКП/App/recruiting-frontend/src/**)",
+      "Bash(docker run *)",
+      "Bash(cmd /c \"docker run --rm -v d:\\\\LESSONS\\\\Курсач_ПСКП\\\\App\\\\nginx\\\\ssl:/ssl alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /ssl/key.pem -out /ssl/cert.pem -subj /C=RU/ST=Minsk/L=Minsk/O=HireVich/CN=localhost\")",
+      "Bash(node -e \"const forge = require\\('node-forge'\\); const pki = forge.pki; const keys = pki.rsa.generateKeyPair\\(2048\\); const cert = pki.createCertificate\\(\\); cert.publicKey = keys.publicKey; cert.serialNumber = '01'; cert.validity.notBefore = new Date\\(\\); cert.validity.notAfter = new Date\\(\\); cert.validity.notAfter.setFullYear\\(cert.validity.notBefore.getFullYear\\(\\) + 1\\); const attrs = [{name:'commonName',value:'localhost'},{name:'countryName',value:'RU'},{name:'stateOrProvinceName',value:'Minsk'},{name:'localityName',value:'Minsk'},{name:'organizationName',value:'HireVich'}]; cert.setSubject\\(attrs\\); cert.setIssuer\\(attrs\\); cert.sign\\(keys.privateKey\\); const fs = require\\('fs'\\); fs.writeFileSync\\('d:/LESSONS/Курсач ПСКП/App/nginx/ssl/key.pem', pki.privateKeyToPem\\(keys.privateKey\\)\\); fs.writeFileSync\\('d:/LESSONS/Курсач ПСКП/App/nginx/ssl/cert.pem', pki.certificateToPem\\(cert\\)\\); console.log\\('SSL cert generated'\\);\")",
+      "Bash(node -e \"const crypto = require\\('crypto'\\); const {writeFileSync} = require\\('fs'\\); const key = crypto.generateKeyPairSync\\('rsa', {modulusLength: 2048, publicKeyEncoding: {type:'spki', format:'pem'}, privateKeyEncoding: {type:'pkcs8', format:'pem'}}\\); writeFileSync\\('d:/LESSONS/Курсач ПСКП/App/nginx/ssl/key.pem', key.privateKey\\); writeFileSync\\('d:/LESSONS/Курсач ПСКП/App/nginx/ssl/cert.pem', '-----BEGIN CERTIFICATE-----\\\\\\\\nMIIC...placeholder...\\\\\\\\n-----END CERTIFICATE-----'\\); console.log\\('keys generated'\\);\")"
     ],
     "additionalDirectories": [
       "\\LESSONS\\Курсач ПСКП\\App\\routes",

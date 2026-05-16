@@ -43,6 +43,10 @@ const Login = () => {
       });
       navigate('/');
     } catch (err) {
+      if (err.response?.data?.is_blocked) {
+        alert('Ваш аккаунт заблокирован. Обратитесь к администратору.');
+        return;
+      }
       setError(err.response?.data?.message || 'Ошибка при входе');
     }
   };

@@ -194,6 +194,36 @@ const deleteApplication = async (req, res) => {
     }
 };
 
+const createChat = async (req, res) => {
+    try {
+        const { applicationId } = req.params;
+
+        const app = await Application.findByPk(applicationId);
+        if (!app) return res.status(404).json({ message: "Отклик не найден" });
+
+        const [chat] = await Chat.findOrCreate({
+            where: { application_id: applicationId },
+            defaults: { application_id: applicationId }
+        });
+
+        if (chat._options?.isNewRecord === false) {
+            return res.json({ message: "Чат уже существует", ChatId: chat.ChatId, alreadyExisted: true });
+        }
+
+        await ChatMessage.create({
+            chat_id: chat.ChatId,
+            sender_id: req.user.UserId || req.user.id,
+            message_text: "Чат создан. Начните общение!",
+            is_system: true
+        });
+
+        res.status(201).json({ message: "Чат создан", ChatId: chat.ChatId });
+    } catch (err) {
+        console.error("Ошибка в createChat:", err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 const openChat = async (req, res) => {
     try {
         const { applicationId } = req.params;
@@ -234,9 +264,8 @@ const getApplicationChecklist = async (req, res) => {
             return res.status(403).json({ message: "Нет доступа к этому чек-листу" });
         }
 
-        // ИСПРАВЛЕНО: Добавляем 'Рассмотрение' в список разрешенных статусов
         const currentStatus = app.status.trim();
-        const allowedStatuses = ['Принято', 'Рассмотрение'];
+        const allowedStatuses = ['Принято', 'На рассмотрении', 'Рассмотрение', 'Новый'];
 
         if (!allowedStatuses.includes(currentStatus)) {
             return res.status(403).json({ message: "Чек-лист доступен только на этапах рассмотрения или принятия" });
@@ -275,5 +304,6 @@ module.exports = {
     getApplicationsByVacancy,
     deleteApplication,
     openChat,
+    createChat,
     getApplicationChecklist
 };
